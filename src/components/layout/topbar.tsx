@@ -1,21 +1,23 @@
 "use client";
 
-import { Search, Bell } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Menu } from "lucide-react";
 
-export default function TopBar() {
+interface TopBarProps {
+  toggleMobileSidebar: () => void;
+}
+
+export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
   return (
-    <header className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
-      <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md w-1/3">
-        <Search size={18} className="text-gray-500" />
-        <input placeholder="Search documents..." className="bg-transparent outline-none flex-1 text-sm" />
-      </div>
+    <header className="flex items-center justify-between bg-white px-4 py-3 border-b border-gray-200 shadow-sm">
+      {/* Mobile Menu Button */}
+      <button onClick={toggleMobileSidebar} className="md:hidden text-gray-700 focus:outline-none">
+        <Menu size={24} />
+      </button>
 
-      <div className="flex items-center gap-4">
-        <Bell className="text-gray-600 cursor-pointer" />
-        <Avatar className="w-8 h-8">
-          <AvatarFallback>TE</AvatarFallback>
-        </Avatar>
+      <h1 className="text-xl font-semibold text-gray-800">Dashboard</h1>
+
+      <div className="flex items-center space-x-4">
+        <img src="https://i.pravatar.cc/40" alt="User" className="w-8 h-8 rounded-full border border-gray-300" />
       </div>
     </header>
   );
