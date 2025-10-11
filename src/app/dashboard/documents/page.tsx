@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import UploadDocumentsModal from "@/components/documents/UploadDocumentModal";
 import DocumentDetailsDrawer from "@/components/documents/DocumentDetailsDrawer";
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@radix-ui/react-context-menu";
+import ShareModal from "@/components/documents/ShareModal";
 
 // --------- Types ----------
 type Folder = {
@@ -109,6 +111,9 @@ export default function DocumentsPage() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const [shareTarget, setShareTarget] = useState<Document | null>(null); // <-- selected file/folder for sharing
+  const [showShareModal, setShowShareModal] = useState(false);
+
   const handleDocumentClick = (doc: Document) => {
     setSelectedDocument(doc);
     setDrawerOpen(true);
@@ -156,6 +161,22 @@ export default function DocumentsPage() {
     if (!currentFolder) return;
     const parent = files.find((f) => f.id === currentFolder.parentId);
     setCurrentFolder(parent || null);
+  };
+
+  const handleDelete = (file: Document) => {
+    setFiles((prev) => prev.filter((f) => f.id !== file.id));
+  };
+
+  const handleRename = (file: Document) => {
+    const newName = prompt("Enter new name:", file.name);
+    if (newName) {
+      setFiles((prev) => prev.map((f) => (f.id === file.id ? { ...f, name: newName } : f)));
+    }
+  };
+
+  const handleShare = (file: Document) => {
+    setShareTarget(file);
+    setShowShareModal(true);
   };
 
   return (
@@ -226,52 +247,74 @@ export default function DocumentsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {/* Folders */}
           {visibleFolders.map((folder) => (
-            <motion.div
-              key={folder.id}
-              whileHover={{ scale: 1.03 }}
-              onClick={() => setCurrentFolderId(folder.id)}
-              className="cursor-pointer bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-4 transition-all flex flex-col items-center justify-center"
-            >
-              <Folder size={48} className="text-amber-600 mb-3" />
-              <p className="text-sm font-medium text-gray-800 truncate">{folder.name}</p>
-              <p className="text-xs text-gray-400">Updated {folder.updatedAt}</p>
-            </motion.div>
+            <ContextMenu>
+              <ContextMenuTrigger>
+                <motion.div
+                  key={folder.id}
+                  whileHover={{ scale: 1.03 }}
+                  onClick={() => setCurrentFolderId(folder.id)}
+                  className="cursor-pointer bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-4 transition-all flex flex-col items-center justify-center"
+                >
+                  <Folder size={48} className="text-amber-600 mb-3" />
+                  <p className="text-sm font-medium text-gray-800 truncate">{folder.name}</p>
+                  <p className="text-xs text-gray-400">Updated {folder.updatedAt}</p>
+                </motion.div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="min-w-[150px] bg-white rounded-md shadow-lg border border-gray-200 p-5 z-50">
+                <ContextMenuItem className="py-2 cursor-pointer outline-none">Rename</ContextMenuItem>
+                <ContextMenuItem className="py-2 cursor-pointer outline-none">Delete</ContextMenuItem>
+                <ContextMenuItem className="py-2 cursor-pointer outline-none">Archive</ContextMenuItem>
+                <ContextMenuItem className="py-2 cursor-pointer outline-none">Share</ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
 
           {/* Documents */}
           {visibleDocuments.map((doc) => (
-            <motion.div
-              key={doc.id}
-              whileHover={{ scale: 1.03 }}
-              className="relative bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-4 transition-all"
-              onClick={() => handleDocumentClick(doc)}
-            >
-              <div className="w-full h-32 bg-gray-50 rounded-lg flex items-center justify-center mb-3">
-                {doc.thumbnail ? (
-                  <img src={doc.thumbnail} alt={doc.name} className="max-h-24 object-contain" />
-                ) : (
-                  <FileText className="text-gray-400" size={40} />
-                )}
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
-                <p className="text-xs text-gray-500">{doc.size}</p>
-                <p className="text-xs text-gray-400">Updated {doc.updatedAt}</p>
-              </div>
-              <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition">
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-amber-600">
-                    <Eye size={16} />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-amber-600">
-                    <Download size={16} />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600">
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
+            <ContextMenu>
+              <ContextMenuTrigger>
+                <motion.div
+                  key={doc.id}
+                  whileHover={{ scale: 1.03 }}
+                  className="relative bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-4 transition-all"
+                  onClick={() => handleDocumentClick(doc)}
+                >
+                  <div className="w-full h-32 bg-gray-50 rounded-lg flex items-center justify-center mb-3">
+                    {doc.thumbnail ? (
+                      <img src={doc.thumbnail} alt={doc.name} className="max-h-24 object-contain" />
+                    ) : (
+                      <FileText className="text-gray-400" size={40} />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
+                    <p className="text-xs text-gray-500">{doc.size}</p>
+                    <p className="text-xs text-gray-400">Updated {doc.updatedAt}</p>
+                  </div>
+                  <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition">
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-amber-600">
+                        <Eye size={16} />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-amber-600">
+                        <Download size={16} />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600">
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="min-w-[150px] bg-white rounded-md shadow-lg border border-gray-200 p-5 z-50">
+                <ContextMenuItem className="py-2 cursor-pointer outline-none">Rename</ContextMenuItem>
+                <ContextMenuItem className="py-2 cursor-pointer outline-none">Delete</ContextMenuItem>
+                <ContextMenuItem className="py-2 cursor-pointer outline-none">Archive</ContextMenuItem>
+                <ContextMenuItem className="py-2 cursor-pointer outline-none" onClick={() => handleShare(doc)}>
+                  Share
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
       ) : (
@@ -340,6 +383,11 @@ export default function DocumentsPage() {
         onDelete={(id) => console.log("Delete", id)}
         onDownload={(id) => console.log("Download", id)}
       />
+
+      {/* Share Modal */}
+      {shareTarget && (
+        <ShareModal open={showShareModal} onClose={() => setShowShareModal(false)} documentName={shareTarget.name} />
+      )}
     </div>
   );
 }
