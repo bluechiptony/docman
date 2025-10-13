@@ -8,7 +8,7 @@ interface TopBarProps {
 
 export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
   return (
-    <header className="flex items-center justify-between bg-white px-4 py-3 border-b border-gray-200 shadow-sm">
+    <header className="flex items-center  justify-between bg-white px-4 py-3 border-b border-gray-200 shadow-sm">
       {/* Mobile Menu Button */}
       <button onClick={toggleMobileSidebar} className="md:hidden text-gray-700 focus:outline-none">
         <Menu size={24} />

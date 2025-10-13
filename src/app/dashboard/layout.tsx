@@ -34,8 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const toggleMobileSidebar = () => setIsMobileOpen((prev) => !prev);
 
   return (
-    <html lang="en">
-      <body className="flex flex-row h-screen overflow-hidden bg-gray-50">
+    <>
+      {/* Removed w-fit */}
+      <div className="flex  flex-row h-screen overflow-hidden  ">
         <Sidebar
           //   isOpen={isSidebarOpen}
           isMobile={isMobile}
@@ -44,11 +45,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           toggleSidebar={toggleSidebar}
           toggleMobileSidebar={toggleMobileSidebar}
         />
-        <main className="flex-1 flex flex-col overflow-y-auto">
+        <main className="flex-1 flex flex-col w-full overflow-y-auto ">
           <TopBar toggleMobileSidebar={toggleMobileSidebar} />
-          <div className="p-6">{children}</div>
+          <div className="p-2">{children}</div>
         </main>
-      </body>
-    </html>
+      </div>
+    </>
   );
 }
