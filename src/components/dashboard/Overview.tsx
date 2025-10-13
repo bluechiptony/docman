@@ -17,6 +17,7 @@ import {
   UserPlus,
   FileBarChart,
   PlusCircle,
+  File,
 } from "lucide-react";
 import {
   LineChart,
@@ -75,7 +76,7 @@ export default function DashboardPage() {
 
   const [docTypeData] = useState([
     { name: "PDF", value: 520, color: "#3b82f6", icon: FileText },
-    { name: "Word", value: 340, color: "#16a34a", icon: FileList },
+    { name: "Word", value: 340, color: "#16a34a", icon: File },
     { name: "Excel", value: 210, color: "#facc15", icon: FileSpreadsheet },
     { name: "Images", value: 170, color: "#f97316", icon: FileImage },
   ]);

@@ -6,12 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -38,7 +33,8 @@ export default function Sidebar({
   const pathname = usePathname();
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-gray-900 text-white">
+    //added w-full to cover space
+    <div className="flex flex-col h-full w-full bg-gray-900 text-white">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
         {!collapsed && <span className="font-bold text-lg">Docman</span>}
@@ -58,9 +54,7 @@ export default function Sidebar({
 
             const linkClasses = cn(
               "flex items-center gap-3 p-3 rounded-md transition",
-              isActive
-                ? "bg-gray-800 text-amber-400"
-                : "hover:bg-gray-800 text-gray-300",
+              isActive ? "bg-gray-800 text-amber-400" : "hover:bg-gray-800 text-gray-300",
               collapsed && !isMobile && "justify-center"
             );
 
@@ -95,10 +89,7 @@ export default function Sidebar({
   return (
     <>
       {/* Desktop Sidebar */}
-      <motion.aside
-        animate={{ width: collapsed ? 80 : 240 }}
-        className="hidden md:flex h-screen shrink-0"
-      >
+      <motion.aside animate={{ width: collapsed ? 80 : 240 }} className="hidden md:flex h-screen shrink-0">
         {sidebarContent}
       </motion.aside>
 
