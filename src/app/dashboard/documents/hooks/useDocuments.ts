@@ -1,118 +1,137 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 
-export type DocumentItem = {
+export interface DocumentItem {
   id: string;
   name: string;
-  type: "file" | "folder";
-  parentId?: string | null;
-  progress?: number;
-};
+  type: "folder" | "file";
+  parentId: string | null;
+  size?: number;
+  mimeType?: string;
+  createdAt?: string;
+}
+
+interface FolderPath {
+  id: string | null;
+  name: string;
+}
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<DocumentItem[]>([
-    { id: "1", name: "Invoices", type: "folder" },
-    { id: "2", name: "CompanyProfile.pdf", type: "file" },
+    { id: "1", name: "Invoices", type: "folder", parentId: null },
+    { id: "2", name: "Contracts", type: "folder", parentId: null },
+    { id: "3", name: "Report.pdf", type: "file", parentId: null },
   ]);
 
-  const [path, setPath] = useState<{ id: string | null; name: string }[]>([{ id: null, name: "Root" }]);
+  // 🧭 Root path starts from "Root"
+  const [path, setPath] = useState<FolderPath[]>([{ id: null, name: "Root" }]);
 
-  // store ongoing upload controllers
-  const uploadControllers = useRef<Record<string, AbortController>>({});
-
-  const addFile = (file: File) => {
-    const newFile: DocumentItem = {
-      id: crypto.randomUUID(),
-      name: file.name,
-      type: "file",
-      parentId: path[path.length - 1].id,
-    };
-    setDocuments((prev) => [...prev, newFile]);
-  };
-
-  const createFolder = (name: string) => {
-    const newFolder: DocumentItem = {
-      id: crypto.randomUUID(),
-      name,
-      type: "folder",
-      parentId: path[path.length - 1].id,
-    };
-    setDocuments((prev) => [...prev, newFolder]);
-    toast.success(`Folder "${name}" created`);
-  };
-
-  const openFolder = (id: string, name: string) => {
-    setPath((prev) => [...prev, { id, name }]);
-  };
-
-  const goBackTo = (id: string | null) => {
-    const index = path.findIndex((p) => p.id === id);
-    setPath(path.slice(0, index + 1));
-  };
-
+  // 🔍 Show only items in the current folder
   const visibleItems = documents.filter((doc) => doc.parentId === path[path.length - 1].id);
 
-  const moveItem = (itemId: string, targetFolderId: string | null) => {
-    setDocuments((prev) => prev.map((d) => (d.id === itemId ? { ...d, parentId: targetFolderId } : d)));
-    toast.success("Item moved successfully");
-  };
+  /** 📁 Create Folder */
+  const createFolder = useCallback(
+    (name: string) => {
+      const newFolder: DocumentItem = {
+        id: crypto.randomUUID(),
+        name,
+        type: "folder",
+        parentId: path[path.length - 1].id,
+        createdAt: new Date().toISOString(),
+      };
 
-  // 🔥 New: parallel uploads with progress reporting
-  //   const handleUpload = async (
-  //     files: FileList,
-  //     onProgress: (name: string, progress: number) => void
-  //   ) => {
-  //     const uploadPromises = Array.from(files).map(async (file) => {
-  //       let progress = 0;
-  //       const uploadInterval = setInterval(() => {
-  //         progress += Math.random() * 10;
-  //         if (progress >= 100) progress = 100;
-  //         onProgress(file.name, progress);
-  //       }, 200);
+      setDocuments((prev) => [...prev, newFolder]);
+    },
+    [path]
+  );
 
-  //       // Simulate upload duration
-  //       await new Promise((resolve) => setTimeout(resolve, 2000 + Math.random() * 2000));
-  //       clearInterval(uploadInterval);
+  /** 📂 Open Folder */
+  const openFolder = useCallback(
+    (id: string) => {
+      const folder = documents.find((f) => f.id === id && f.type === "folder");
+      if (!folder) return;
 
-  //       addFile(file);
-  //       onProgress(file.name, 100);
-  //     });
+      setPath((prev) => [...prev, { id: folder.id, name: folder.name }]);
+    },
+    [documents]
+  );
 
-  //     await Promise.all(uploadPromises);
-  //     toast.success(`${files.length} file(s) uploaded successfully`);
-  //   };
+  /** 🔙 Go back to breadcrumb folder */
+  const goBackTo = useCallback((id: string | null) => {
+    // setPath((prev) => prev.slice(0, index + 1));
+    const index = path.findIndex((p) => p.id === id);
+    setPath(path.slice(0, index + 1));
+  }, []);
 
-  // Multiple files upload in parallel with per-file progress callbacks
-  const handleUpload = async (files: File[], onProgress: (fileName: string, percent: number) => void) => {
-    await Promise.all(
-      files.map(async (file) => {
-        const totalSteps = 10;
+  /** 🔁 Move Item (drag & drop simulation) */
+  const moveItem = useCallback((itemId: string, newParentId: string | null) => {
+    setDocuments((prev) => prev.map((doc) => (doc.id === itemId ? { ...doc, parentId: newParentId } : doc)));
+  }, []);
 
-        for (let i = 1; i <= totalSteps; i++) {
-          await new Promise((r) => setTimeout(r, 150)); // simulate upload latency
-          onProgress(file.name, Math.round((i / totalSteps) * 100));
-        }
+  /** 🗑️ Delete Item */
+  const deleteItem = useCallback((id: string) => {
+    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+  }, []);
 
-        addFile(file);
-      })
-    );
-  };
+  /** ✏️ Rename Item */
+  const renameItem = useCallback((id: string, newName: string) => {
+    setDocuments((prev) => prev.map((doc) => (doc.id === id ? { ...doc, name: newName } : doc)));
+  }, []);
 
-  const cancelUpload = (fileName: string) => {
-    const controller = uploadControllers.current[fileName];
-    if (controller) controller.abort();
-  };
+  /** 📤 Upload Files (parallel) */
+  const handleUpload = useCallback(
+    async (files: File[], onProgress?: (fileName: string, percent: number) => void) => {
+      const currentFolderId = path[path.length - 1].id;
+
+      await Promise.all(
+        files.map(async (file) => {
+          const id = crypto.randomUUID();
+
+          // Simulate upload progress
+          for (let percent = 0; percent <= 100; percent += 20) {
+            await new Promise((res) => setTimeout(res, 120));
+            onProgress?.(file.name, percent);
+          }
+
+          // ✅ Save the file under the current folder
+          setDocuments((prev) => [
+            ...prev,
+            {
+              id,
+              name: file.name,
+              type: "file",
+              parentId: currentFolderId,
+              size: file.size,
+              mimeType: file.type,
+              createdAt: new Date().toISOString(),
+            },
+          ]);
+
+          toast.success(`${file.name} uploaded successfully`);
+        })
+      );
+    },
+    [path]
+  );
+
+  /** ⛔ Cancel Upload (mocked) */
+  const cancelUpload = useCallback((fileName: string) => {
+    toast.info(`Cancelled upload for ${fileName}`);
+  }, []);
 
   return {
-    path,
+    documents,
     visibleItems,
+    path,
     createFolder,
     openFolder,
     goBackTo,
     moveItem,
+    deleteItem,
+    renameItem,
     handleUpload,
-    cancelUpload
+    cancelUpload,
   };
 }
