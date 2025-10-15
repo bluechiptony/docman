@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useDocuments } from "../hooks/useDocuments";
 import { X, UploadCloud } from "lucide-react";
 import clsx from "clsx";
+import { toast } from "sonner";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -48,28 +49,46 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
 
   const startUpload = async () => {
     if (!files.length) return;
+
     setIsUploading(true);
 
-    // Initialize all progress bars at 0
     const progressState: Record<string, number> = {};
     files.forEach((f) => (progressState[f.name] = 0));
     setProgress(progressState);
 
-    // Upload in parallel
-    await handleUpload(files, (fileName, percent) => {
-      setProgress((prev) => ({
-        ...prev,
-        [fileName]: percent,
-      }));
-    });
+    // Upload files in parallel with toast feedback
+    await Promise.all(
+      files.map(async (file) => {
+        const toastId = toast.loading(`Uploading ${file.name}...`);
+
+        try {
+          await handleUpload([file], (fileName, percent) => {
+            setProgress((prev) => ({
+              ...prev,
+              [fileName]: percent,
+            }));
+
+            // Update toast progress if needed
+            toast.message(`${fileName} ${percent.toFixed(0)}%`, { id: toastId });
+          });
+
+          toast.success(`${file.name} uploaded successfully!`, { id: toastId });
+        } catch (err) {
+          console.error(err);
+          toast.error(`Failed to upload ${file.name}`, { id: toastId });
+        }
+      })
+    );
 
     setIsUploading(false);
+    setFiles([]);
     onClose();
   };
 
   const handleCancel = (fileName: string) => {
     cancelUpload(fileName);
     setCancelled((prev) => ({ ...prev, [fileName]: true }));
+    toast.info(`${fileName} upload cancelled.`);
   };
 
   return (
