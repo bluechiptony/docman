@@ -127,14 +127,14 @@ export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename,
                 className={`relative cursor-pointer p-4 rounded-xl border bg-white shadow-sm transition group ${
                   hoveredFolder === item.id ? "border-amber-500 ring-2 ring-amber-200" : "hover:shadow-md"
                 }`}
-                onDoubleClick={() => (item.type === "folder" ? onFolderOpen(item.id, item.name) : null)}
+                onDoubleClick={() =>
+                  item.type === "folder" ? onFolderOpen(item.id, item.name) : handleOpenDocDetails(item.id)
+                }
+                onClick={() => {
+                  item.type === "folder" ? null : handleOpenDocDetails(item.id);
+                }}
               >
-                <div
-                  className="flex flex-col items-center gap-3"
-                  onClick={() => {
-                    handleOpenDocDetails(item.id);
-                  }}
-                >
+                <div className="flex flex-col items-center gap-3">
                   {item.type === "folder" ? (
                     <Folder className={`h-10 w-10 ${hoveredFolder === item.id ? "text-amber-600" : "text-gray-700"}`} />
                   ) : (
