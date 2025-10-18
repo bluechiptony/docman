@@ -12,9 +12,10 @@ import { toast } from "sonner";
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onUploadComplete?: (fileName: string, fileUrl: string) => void; // ✅
 }
 
-export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
+export default function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalProps) {
   const { handleUpload, cancelUpload } = useDocuments();
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState<Record<string, number>>({});
@@ -72,7 +73,9 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
             toast.message(`${fileName} ${percent.toFixed(0)}%`, { id: toastId });
           });
 
+          const uploadedUrl = `https://example-bucket.com/${file.name}`; // or real response
           toast.success(`${file.name} uploaded successfully!`, { id: toastId });
+          onUploadComplete?.(file.name, uploadedUrl);
         } catch (err) {
           console.error(err);
           toast.error(`Failed to upload ${file.name}`, { id: toastId });

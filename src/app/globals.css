@@ -120,3 +120,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+.text-tiny {
+  /* font-size: xx-small; */
+  font-size: 7px;
+}
+
+@layer utilities {
+  .bg-radial-blue {
+    background: radial-gradient(circle at center, #6a9ef3 0%, #e0f2ff 15%, #ffffff 40%);
+  }
+}
