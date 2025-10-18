@@ -19,9 +19,10 @@ interface Props {
   onDelete: (id: string) => void;
   onRename: (id: string, newName: string) => void;
   onShare: (id: string) => string; // returns share link
+  onUploadComplete?: () => void;
 }
 
-export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename, onShare }: Props) {
+export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename, onShare, onUploadComplete }: Props) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null);
 

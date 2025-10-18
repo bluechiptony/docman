@@ -11,6 +11,7 @@ export interface DocumentItem {
   size?: number;
   mimeType?: string;
   createdAt?: string;
+  url?: string;
 }
 
 interface FolderPath {
@@ -121,6 +122,21 @@ export function useDocuments() {
     toast.info(`Cancelled upload for ${fileName}`);
   }, []);
 
+  // Inside useDocuments.ts
+
+  const addDocument = (fileName: string, fileUrl: string) => {
+    const currentFolderId = path[path.length - 1].id;
+    const newDoc: DocumentItem = {
+      id: Date.now().toString(),
+      name: fileName,
+      type: "file",
+      parentId: currentFolderId,
+      url: fileUrl,
+    };
+
+    setDocuments((prev) => [...prev, newDoc]);
+  };
+
   return {
     documents,
     visibleItems,
@@ -133,5 +149,6 @@ export function useDocuments() {
     renameItem,
     handleUpload,
     cancelUpload,
+    addDocument,
   };
 }

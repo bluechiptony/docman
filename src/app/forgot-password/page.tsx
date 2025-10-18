@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function ForgotPasswordComponent() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen p-8 pb-20 gap-16 sm:p-20">
+    <div className="flex flex-col items-center justify-center h-screen p-8 pb-20 gap-16 sm:p-20 bg-radial-blue">
       <div className="w-1/4">
         <Card className="p-4">
           <h1 className="text-center  text-black text-2xl ">Recover Your Account</h1>

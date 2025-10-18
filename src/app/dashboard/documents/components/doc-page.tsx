@@ -14,7 +14,8 @@ export default function DocumentsPage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { path, visibleItems, createFolder, openFolder, goBackTo, moveItem, handleUpload } = useDocuments();
+  const { path, visibleItems, createFolder, openFolder, goBackTo, moveItem, handleUpload, addDocument } =
+    useDocuments();
 
   /** 🔴 Handle Delete */
   const handleDelete = (id: string) => {
@@ -80,7 +81,13 @@ export default function DocumentsPage() {
       </div>
 
       {/* Upload Modal */}
-      <UploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
+      <UploadModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onUploadComplete={(fileName, fileUrl) => {
+          addDocument(fileName, fileUrl);
+        }}
+      />
 
       <Toaster richColors position="top-right" />
     </div>
