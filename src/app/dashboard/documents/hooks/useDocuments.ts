@@ -87,16 +87,12 @@ export function useDocuments() {
     async (files: File[], onProgress?: (fileName: string, percent: number) => void) => {
       const currentFolderId = path[path.length - 1].id;
 
+      console.log("📤 Starting upload for files in path:", path);
+
       await Promise.all(
         files.map(async (file) => {
           const id = crypto.randomUUID();
           const toastId = toast.loading(`Preparing ${file.name}...`);
-
-          // Simulate upload progress
-          // for (let percent = 0; percent <= 100; percent += 20) {
-          //   await new Promise((res) => setTimeout(res, 120));
-          //   onProgress?.(file.name, percent);
-          // }
 
           try {
             // 1️⃣ Get presigned URL
