@@ -113,7 +113,7 @@ export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename,
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 p-4">
         {items.map((item) => (
           <ContextMenu key={item.id}>
             <ContextMenuTrigger>

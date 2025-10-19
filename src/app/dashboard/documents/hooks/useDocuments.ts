@@ -1,5 +1,6 @@
 "use client";
 
+import { apiClient, uploadClient } from "@/api/client";
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -86,29 +87,50 @@ export function useDocuments() {
     async (files: File[], onProgress?: (fileName: string, percent: number) => void) => {
       const currentFolderId = path[path.length - 1].id;
 
+      console.log("📤 Starting upload for files in path:", path);
+
       await Promise.all(
         files.map(async (file) => {
           const id = crypto.randomUUID();
+          const toastId = toast.loading(`Preparing ${file.name}...`);
 
-          // Simulate upload progress
-          for (let percent = 0; percent <= 100; percent += 20) {
-            await new Promise((res) => setTimeout(res, 120));
-            onProgress?.(file.name, percent);
-          }
+          try {
+            // 1️⃣ Get presigned URL
+            const presigned = await getPresignedUrl(file);
 
-          // ✅ Save the file under the current folder
-          setDocuments((prev) => [
-            ...prev,
-            {
-              id,
+            // 2️⃣ Upload to bucket
+            const secUrl = await uploadToCloudinaryBucket(file, presigned, (percent) => {
+              onProgress?.(file.name, percent);
+              toast.message(`${file.name}: ${percent.toFixed(0)}%`, { id: toastId });
+            });
+
+            // 3️⃣ Complete upload
+            // await completeUpload(fileId, file, storageKey);
+            await completeUpload(secUrl, {
+              file,
               name: file.name,
-              type: "file",
               parentId: currentFolderId,
+              type: "file",
               size: file.size,
-              mimeType: file.type,
-              createdAt: new Date().toISOString(),
-            },
-          ]);
+            });
+
+            // ✅ Save the file under the current folder
+            setDocuments((prev) => [
+              ...prev,
+              {
+                id,
+                name: file.name,
+                type: "file",
+                parentId: currentFolderId,
+                size: file.size,
+                mimeType: file.type,
+                createdAt: new Date().toISOString(),
+              },
+            ]);
+          } catch (error) {
+            toast.message(`Upload failed`, { id: toastId });
+            toast.dismiss(toastId);
+          }
 
           toast.success(`${file.name} uploaded successfully`);
         })
@@ -123,7 +145,6 @@ export function useDocuments() {
   }, []);
 
   // Inside useDocuments.ts
-
   const addDocument = (fileName: string, fileUrl: string) => {
     const currentFolderId = path[path.length - 1].id;
     const newDoc: DocumentItem = {
@@ -135,6 +156,92 @@ export function useDocuments() {
     };
 
     setDocuments((prev) => [...prev, newDoc]);
+  };
+
+  /** 📤 STEP 1: Request a presigned URL from backend */
+  const getPresignedUrl = async (file: File) => {
+    try {
+      const res = await apiClient.post("/storage/upload-url", {
+        filename: file.name,
+        contentType: file.type,
+      });
+      return res.data; // { uploadUrl, fileId, storageKey }
+    } catch (err: any) {
+      console.error("❌ Presign failed:", err.message);
+      toast.error(`Failed to prepare upload for ${file.name}`);
+      throw err;
+    }
+  };
+
+  /** 🚀 STEP 2: Upload directly to storage */
+  const uploadToBucket = async (file: File, uploadUrl: string, onProgress?: (progress: number) => void) => {
+    try {
+      await uploadClient.put(uploadUrl, file, {
+        headers: { "Content-Type": file.type },
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+          onProgress?.(percent);
+        },
+      });
+    } catch (err: any) {
+      console.error("❌ Upload failed:", err.message);
+      toast.error(`Upload failed for ${file.name}`);
+      throw err;
+    }
+  };
+
+  /** 🚀 STEP 2: Upload directly to storage */
+  const uploadToCloudinaryBucket = async (
+    file: File,
+    presigned: { uploadUrl: string; fields?: Record<string, string>; publicUrl?: string },
+    onProgress?: (progress: number) => void
+  ) => {
+    try {
+      if (presigned.fields && Object.keys(presigned.fields).length > 0) {
+        const formData = new FormData();
+
+        // Add Cloudinary / form fields
+        Object.entries(presigned.fields).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+
+        formData.append("file", file);
+
+        const response = await uploadClient.post(presigned.uploadUrl, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (event) => {
+            const percent = Math.round((event.loaded * 100) / (event.total ?? 1));
+            onProgress?.(percent);
+          },
+        });
+        console.log("✅ Cloudinary upload response:", response.data);
+
+        return response.data.secure_url;
+      }
+    } catch (err: any) {
+      console.error("❌ Upload failed:", err.message);
+      toast.error(`Upload failed for ${file.name}`);
+      throw err;
+    }
+  };
+
+  /** ✅ STEP 3: Notify backend upload is complete */
+  const completeUpload = async (fileId: string, metadata: Record<string, any>) => {
+    try {
+      metadata.fileNameUrl = fileId;
+      delete metadata.file;
+      console.log("🔵 Completing upload with metadata:", metadata);
+
+      await apiClient.post(`/storage/upload/complete`, {
+        fileUrl: fileId,
+        type: metadata.type,
+        size: metadata.size,
+        name: metadata.name,
+      });
+    } catch (err: any) {
+      console.error("❌ Complete upload failed:", err.message);
+      toast.warning(`Failed to finalize upload`);
+    }
   };
 
   return {
