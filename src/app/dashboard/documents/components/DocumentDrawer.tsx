@@ -170,7 +170,7 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
   return (
     <>
       <Drawer open={open} onClose={onClose}>
-        <DrawerContent className="p-4 md:max-w-md ml-auto">
+        <DrawerContent className="p-4 md:max-w-md ml-auto h-screen">
           <DrawerHeader>
             <DrawerTitle className="text-lg font-semibold">{doc.name}</DrawerTitle>
             <div className="flex flex-col">

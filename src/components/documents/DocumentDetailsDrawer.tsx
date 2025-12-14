@@ -36,21 +36,15 @@ export default function DocumentDetailsDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onClose}>
-      <DrawerContent className="max-w-md ml-auto bg-white rounded-l-2xl shadow-lg border-l p-4">
+      <DrawerContent className="max-w-md ml-auto h-screen bg-white rounded-l-2xl shadow-lg border-l p-4">
         <DrawerHeader className="flex justify-between items-center">
-          <DrawerTitle className="text-lg font-semibold">
-            Document Details
-          </DrawerTitle>
+          <DrawerTitle className="text-lg font-semibold">Document Details</DrawerTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X size={18} />
           </Button>
         </DrawerHeader>
 
-        <motion.div
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="p-4 space-y-4"
-        >
+        <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} className="p-4 space-y-4">
           {/* File Info */}
           <div className="flex items-center gap-3">
             <div className="bg-amber-100 p-3 rounded-xl">
@@ -100,19 +94,11 @@ export default function DocumentDetailsDrawer({
 
           {/* Actions */}
           <div className="flex justify-between gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onDownload?.(document.id)}
-            >
+            <Button variant="outline" className="flex-1" onClick={() => onDownload?.(document.id)}>
               <Download size={16} className="mr-2" />
               Download
             </Button>
-            <Button
-              variant="destructive"
-              className="flex-1"
-              onClick={() => onDelete?.(document.id)}
-            >
+            <Button variant="destructive" className="flex-1" onClick={() => onDelete?.(document.id)}>
               <Trash2 size={16} className="mr-2" />
               Delete
             </Button>
