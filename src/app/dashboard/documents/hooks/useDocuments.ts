@@ -1,8 +1,9 @@
 "use client";
 
 import { apiClient, uploadClient } from "@/api/client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/providers/auth.provider";
 
 export interface DocumentItem {
   id: string;
@@ -21,11 +22,9 @@ interface FolderPath {
 }
 
 export function useDocuments() {
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    { id: "1", name: "Invoices", type: "folder", parentId: null },
-    { id: "2", name: "Contracts", type: "folder", parentId: null },
-    { id: "3", name: "Report.pdf", type: "file", parentId: null },
-  ]);
+  const { user } = useAuth();
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // 🧭 Root path starts from "Root"
   const [path, setPath] = useState<FolderPath[]>([{ id: null, name: "Root" }]);
@@ -33,18 +32,74 @@ export function useDocuments() {
   // 🔍 Show only items in the current folder
   const visibleItems = documents.filter((doc) => doc.parentId === path[path.length - 1].id);
 
+  /** 📂 Fetch documents and folders */
+  const fetchDocuments = useCallback(async (parentId: string | null = null) => {
+    setLoading(true);
+    try {
+      // Currently backend only supports root-level fetching
+      // TODO: Implement /folders/:id/documents endpoint when documents module is created
+      let endpoint = `/folders/get/all/root`;
+
+      if (parentId) {
+        console.log(`parent id ${parentId}`);
+        endpoint = `/folders/get/all/parent?parent=${parentId}`;
+      }
+
+      const response = await apiClient.get(endpoint);
+      // Filter items by parentId if provided
+      const items = response.data || [];
+      const filtered = parentId
+        ? items.filter((item: DocumentItem) => item.parentId === parentId)
+        : items.filter((item: DocumentItem) => item.parentId === null);
+
+      setDocuments(items); // Store all items for internal filtering
+    } catch (error: any) {
+      console.error("Failed to fetch documents:", error);
+      toast.error(error.response?.data?.message || "Failed to load documents");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch documents when path changes
+  useEffect(() => {
+    const currentParentId = path[path.length - 1].id;
+    fetchDocuments(currentParentId);
+  }, [path, fetchDocuments]);
+
   /** 📁 Create Folder */
   const createFolder = useCallback(
-    (name: string) => {
-      const newFolder: DocumentItem = {
-        id: crypto.randomUUID(),
-        name,
-        type: "folder",
-        parentId: path[path.length - 1].id,
-        createdAt: new Date().toISOString(),
-      };
+    async (name: string, parentFolderId?: string) => {
+      const currentFolderId = parentFolderId ?? path[path.length - 1].id;
 
-      setDocuments((prev) => [...prev, newFolder]);
+      try {
+        if (!user?.organizations || !user?.id) {
+          toast.error("User information not available. Please log in again.");
+          return;
+        }
+
+        const response = await apiClient.post("/folders/create", {
+          name,
+          organizationId: user.organizations[0]?.organization?.id,
+          parentFolderId: currentFolderId,
+          createdById: user.id,
+        });
+
+        const newFolder: DocumentItem = {
+          id: response.data.id,
+          name: response.data.name,
+          type: "folder",
+          parentId: currentFolderId,
+          createdAt: response.data.createdAt || new Date().toISOString(),
+        };
+
+        setDocuments((prev) => [...prev, newFolder]);
+        toast.success(`Folder "${name}" created successfully`);
+      } catch (error: any) {
+        console.error("Failed to create folder:", error);
+        toast.error(error.response?.data?.message || "Failed to create folder");
+        throw error;
+      }
     },
     [path]
   );

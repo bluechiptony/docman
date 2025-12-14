@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FileText, Folder, MoreVertical, Pencil, Share2, Trash, Copy, Check } from "lucide-react";
+import { FileText, Folder, MoreVertical, Pencil, Share2, Trash, Copy, Check, Eye } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DocumentItem } from "../hooks/useDocuments";
@@ -151,6 +151,20 @@ export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename,
             </ContextMenuTrigger>
 
             <ContextMenuContent>
+              <ContextMenuItem
+                onClick={() => {
+                  // Open document viewer/drawer for this item
+                  if (item.type === "file") {
+                    setSelectedDoc(item.id);
+                    setDrawerOpen(true);
+                  } else {
+                    // If folder, navigate into it
+                    onFolderOpen(item.id, item.name);
+                  }
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" /> View
+              </ContextMenuItem>
               <ContextMenuItem
                 onClick={() => {
                   setRenameTarget(item);

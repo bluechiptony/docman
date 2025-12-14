@@ -24,24 +24,16 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-40 text-gray-500">
-        Loading users...
-      </div>
-    );
+    return <div className="flex justify-center items-center h-40 text-gray-500">Loading users...</div>;
   }
 
   if (!users.length) {
-    return (
-      <div className="flex justify-center items-center h-40 text-gray-400">
-        No users found
-      </div>
-    );
+    return <div className="flex justify-center items-center h-40 text-gray-400">No users found</div>;
   }
 
   const handleRoleChange = async (userId: string, role: string) => {
     setSelectedUser(userId);
-    await updateRole(userId, role);
+    await updateRole(userId, role as "ADMINISTRATOR" | "EDITOR" | "VIEWER");
     setSelectedUser(null);
   };
 
@@ -57,13 +49,13 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
     }
   };
 
-  const getStatusBadge = (status?: string) => {
+  const getStatusBadge = (status?: boolean) => {
     switch (status) {
-      case "active":
+      case true:
         return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case "invited":
-        return <Badge className="bg-yellow-100 text-yellow-800">Invited</Badge>;
-      case "pending":
+      // case "invited":
+      // return <Badge className="bg-yellow-100 text-yellow-800">Invited</Badge>;
+      case false:
         return <Badge className="bg-gray-100 text-gray-700">Pending</Badge>;
       default:
         return null;
@@ -85,14 +77,16 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
         <tbody className="divide-y divide-gray-100">
           {users.map((user) => (
             <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-              <td className="px-4 py-3 font-medium text-gray-800">{user.name || "—"}</td>
-              <td className="px-4 py-3 text-gray-600">{user.email}</td>
+              <td className="px-4 py-3 font-medium text-gray-800">
+                {user.firstName || "—"} {user.lastName || "—"}
+              </td>
+              <td className="px-4 py-3 text-gray-600">{user.emailAddress}</td>
               <td className="px-4 py-3">
-                <Badge className={clsx("capitalize", getRoleBadgeColor(user.role))}>
-                  {user.role}
+                <Badge className={clsx("capitalize", getRoleBadgeColor(user.authentication.role))}>
+                  {user.authentication.role}
                 </Badge>
               </td>
-              <td className="px-4 py-3">{getStatusBadge(user.status)}</td>
+              <td className="px-4 py-3">{getStatusBadge(user.authentication.active)}</td>
               <td className="px-4 py-3 text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

@@ -386,7 +386,12 @@ export default function DocumentsPage() {
 
       {/* Share Modal */}
       {shareTarget && (
-        <ShareModal open={showShareModal} onClose={() => setShowShareModal(false)} documentName={shareTarget.name} />
+        <ShareModal
+          open={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          documentName={shareTarget.name}
+          documentId={shareTarget.id}
+        />
       )}
     </div>
   );

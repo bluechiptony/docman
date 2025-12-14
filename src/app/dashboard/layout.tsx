@@ -5,7 +5,7 @@ import TopBar from "@/components/layout/topbar";
 import { useEffect, useState } from "react";
 
 const metadata = {
-  title: "Docman | Document Management System",
+  title: "Doc-Man 🗂️ Document Management System",
   description: "Manage, organize, and access documents efficiently.",
 };
 
