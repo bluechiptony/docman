@@ -144,14 +144,17 @@ export function useDocuments() {
 
       console.log("📤 Starting upload for files in path:", path);
 
+      // Get current organization and folder IDs
+      const currentOrganizationId = user?.organizations?.[0]?.organization?.id;
+
       await Promise.all(
         files.map(async (file) => {
           const id = crypto.randomUUID();
           const toastId = toast.loading(`Preparing ${file.name}...`);
 
           try {
-            // 1️⃣ Get presigned URL
-            const presigned = await getPresignedUrl(file);
+            // 1️⃣ Get presigned URL with folder path and metadata
+            const presigned = await getPresignedUrl(file, currentOrganizationId, currentFolderId);
 
             // 2️⃣ Upload to bucket
             const secUrl = await uploadToCloudinaryBucket(file, presigned, (percent) => {
@@ -214,13 +217,28 @@ export function useDocuments() {
   };
 
   /** 📤 STEP 1: Request a presigned URL from backend */
-  const getPresignedUrl = async (file: File) => {
+  const getPresignedUrl = async (file: File, organizationId?: string, folderId?: string) => {
     try {
+      // Build folder path (org_id/folder_id or just org_id)
+      const folderPath = folderId ? `${organizationId}/${folderId}` : organizationId || "documents";
+
+      // Build metadata to track in Cloudinary context
+      const metadata: Record<string, string> = {
+        uploaded_by: user?.id || "unknown",
+        org_id: organizationId || "unknown",
+      };
+
+      if (folderId) {
+        metadata.folder_id = folderId;
+      }
+
       const res = await apiClient.post("/storage/upload-url", {
-        filename: file.name,
+        fileName: file.name,
         contentType: file.type,
+        folderPath,
+        metadata,
       });
-      return res.data; // { uploadUrl, fileId, storageKey }
+      return res.data; // { uploadUrl, publicUrl, fields }
     } catch (err: any) {
       console.error("❌ Presign failed:", err.message);
       toast.error(`Failed to prepare upload for ${file.name}`);

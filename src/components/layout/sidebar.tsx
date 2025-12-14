@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LayoutDashboard, FileText, Users, Settings, Menu, X } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Settings, Menu, X, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/providers/auth.provider";
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { name: "Documents", icon: FileText, href: "/dashboard/documents" },
   { name: "Users", icon: Users, href: "/dashboard/users" },
+  { name: "Moderation", icon: ShieldCheck, href: "/dashboard/moderation", roles: ["ADMINISTRATOR"] },
   { name: "Settings", icon: Settings, href: "/dashboard/settings" },
 ];
 
@@ -31,6 +33,7 @@ export default function Sidebar({
   toggleMobileSidebar,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const sidebarContent = (
     //added w-full to cover space
@@ -49,6 +52,9 @@ export default function Sidebar({
       <TooltipProvider>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
+            if (item.roles && (!user?.authentication?.role || !item.roles.includes(user.authentication.role))) {
+              return null;
+            }
             const Icon = item.icon;
             const isActive = pathname === item.href;
 

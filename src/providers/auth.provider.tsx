@@ -20,6 +20,23 @@ interface User {
   organizations?: any[];
 }
 
+type DecodedToken = {
+  payload?: User;
+  [key: string]: any;
+};
+
+const extractUserFromToken = (token: string): User | null => {
+  try {
+    const decoded = jwtDecode<DecodedToken>(token);
+    const candidate = decoded?.payload ?? decoded;
+    if (!candidate || typeof candidate !== "object") return null;
+    return candidate as User;
+  } catch (error) {
+    console.error("Invalid token:", error);
+    return null;
+  }
+};
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -42,13 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
-      try {
-        const decoded = jwtDecode<User>(storedToken);
-
-        setUser(decoded);
+      const extractedUser = extractUserFromToken(storedToken);
+      if (extractedUser) {
+        setUser(extractedUser);
         setToken(storedToken);
-      } catch (error) {
-        console.error("Invalid token:", error);
+      } else {
         localStorage.removeItem("token");
       }
     }
@@ -69,15 +84,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Decode JWT to get user info
-      const decoded = jwtDecode<any>(accessToken);
-
-      console.log(decoded.payload);
+      const decodedUser = extractUserFromToken(accessToken);
+      if (!decodedUser) {
+        throw new Error("Failed to decode user from token");
+      }
       // Save token to localStorage
       localStorage.setItem("token", accessToken);
 
       // Update state
       setToken(accessToken);
-      setUser(decoded.payload);
+      setUser(decodedUser);
 
       toast.success("Login successful!");
       router.push("/dashboard");
@@ -100,14 +116,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = () => {
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
-      try {
-        const decoded = jwtDecode<User>(storedToken);
-        setUser(decoded);
-      } catch (error) {
-        console.error("Failed to refresh user:", error);
-        logout();
+      const extractedUser = extractUserFromToken(storedToken);
+      if (extractedUser) {
+        setUser(extractedUser);
+        return;
       }
     }
+    logout();
   };
 
   const value: AuthContextType = {
