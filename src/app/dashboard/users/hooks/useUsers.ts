@@ -1,117 +1,141 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-
+import { useState, useEffect } from "react";
+import { apiClient } from "@/api/client";
+import { useAuth } from "@/providers/auth.provider";
 import { toast } from "sonner";
 
 export interface User {
   id: string;
-  name: string;
-  email: string;
-  role: string;
-  status?: "active" | "invited" | "pending";
+  emailAddress: string;
+  firstName: string;
+  lastName: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  authentication: {
+    role: "ADMINISTRATOR" | "EDITOR" | "VIEWER";
+    active: boolean;
+  };
+  organizations?: any[];
 }
 
 const TEST_USERS: User[] = [
-  { id: "1", name: "Alice Johnson", email: "alice@company.com", role: "admin", status: "active" },
-  { id: "2", name: "Bob Smith", email: "bob@company.com", role: "editor", status: "active" },
-  { id: "3", name: "Carol Danvers", email: "carol@company.com", role: "viewer", status: "active" },
-  { id: "4", name: "David Kim", email: "david@company.com", role: "viewer", status: "invited" },
-  { id: "5", name: "Evelyn Cruz", email: "evelyn@company.com", role: "viewer", status: "pending" },
+  {
+    id: "1",
+    emailAddress: "alice@finserve.com",
+    firstName: "Alice",
+    lastName: "Johnson",
+    createdAt: new Date("2025-10-19T19:41:06.102Z"),
+    updatedAt: new Date("2025-10-19T19:41:06.102Z"),
+    authentication: { role: "ADMINISTRATOR", active: true },
+  },
+  {
+    id: "2",
+    emailAddress: "bob@finserve.com",
+    firstName: "Bob",
+    lastName: "Smith",
+    createdAt: new Date("2025-10-19T19:41:06.102Z"),
+    updatedAt: new Date("2025-10-19T19:41:06.102Z"),
+    authentication: { role: "EDITOR", active: true },
+  },
+  {
+    id: "3",
+    emailAddress: "carol@finserve.com",
+    firstName: "Carol",
+    lastName: "Danvers",
+    createdAt: new Date("2025-10-19T19:41:06.102Z"),
+    updatedAt: new Date("2025-10-19T19:41:06.102Z"),
+    authentication: { role: "VIEWER", active: true },
+  },
 ];
-export function useUsers() {
-  const [users, setUsers] = useState<any[]>([]);
 
+export function useUsers() {
+  const { user } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  // Simulate the current logged-in user (admin)
-  const currentUser: User = TEST_USERS[0]; // Alice Johnson (Admin)
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setUsers(TEST_USERS);
-      setLoading(false);
-    }, 500);
-  }, []);
-
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/users");
-      const data = await res.json();
-      setUsers(data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load users");
+      const response = await apiClient.get("/user/get/all");
+      setUsers(response.data);
+    } catch (err: any) {
+      console.error("Failed to fetch users:", err);
+      toast.error(err.response?.data?.message || "Failed to load users");
     } finally {
       setLoading(false);
     }
   };
-  const updateUserRole = async (id: string, role: string) => {
-    const res = await fetch(`/api/users/${id}/role`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
-    });
-    if (res.ok) {
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
+
+  const updateUserRole = async (id: string, role: "ADMINISTRATOR" | "EDITOR" | "VIEWER") => {
+    try {
+      await apiClient.patch(`/users/${id}/role`, { role });
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, authentication: { ...u.authentication, role } } : u)));
+      toast.success("Role updated successfully");
       return true;
+    } catch (err: any) {
+      console.error("Failed to update role:", err);
+      toast.error(err.response?.data?.message || "Failed to update role");
+      return false;
     }
-    return false;
   };
 
   const deactivateUser = async (id: string) => {
-    const res = await fetch(`/api/users/${id}/deactivate`, { method: "POST" });
-    if (res.ok) {
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, active: false } : u)));
+    try {
+      await apiClient.post(`/users/${id}/deactivate`);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, authentication: { ...u.authentication, active: false } } : u))
+      );
+      toast.success("User deactivated");
       return true;
+    } catch (err: any) {
+      console.error("Failed to deactivate user:", err);
+      toast.error(err.response?.data?.message || "Failed to deactivate user");
+      return false;
     }
-    return false;
   };
 
-  const inviteUser = async (email: string, role: string) => {
+  const inviteUser = async (email: string, role: "ADMINISTRATOR" | "EDITOR" | "VIEWER") => {
     try {
-      const res = await fetch("/api/users/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
-      });
-
-      if (!res.ok) throw new Error("Invite failed");
-
-      const invited = await res.json();
-      setUsers((prev) => [...prev, invited]);
+      const response = await apiClient.post("/users/invite", { emailAddress: email, role });
+      setUsers((prev) => [...prev, response.data]);
       toast.success(`Invitation sent to ${email}`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to send invitation");
+    } catch (err: any) {
+      console.error("Failed to send invitation:", err);
+      toast.error(err.response?.data?.message || "Failed to send invitation");
     }
   };
 
-  const updateRole = async (userId: string, role: string) => {
+  const updateRole = async (userId: string, role: "ADMINISTRATOR" | "EDITOR" | "VIEWER") => {
     try {
-      const res = await fetch(`/api/users/${userId}/role`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      });
-
-      if (!res.ok) throw new Error("Role update failed");
-
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+      await apiClient.patch(`/users/${userId}/role`, { role });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, authentication: { ...u.authentication, role } } : u))
+      );
       toast.success("Role updated");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update role");
+    } catch (err: any) {
+      console.error("Failed to update role:", err);
+      toast.error(err.response?.data?.message || "Failed to update role");
     }
   };
 
-  const canInvite = currentUser.role === "admin";
-  const canManageRoles = currentUser.role === "admin";
+  const canInvite = user?.authentication?.role === "ADMINISTRATOR";
+  const canManageRoles = user?.authentication?.role === "ADMINISTRATOR";
 
-  return { users, fetchUsers, updateUserRole, deactivateUser, updateRole, inviteUser, loading, canInvite, canManageRoles , currentUser};
+  return {
+    users,
+    fetchUsers,
+    updateUserRole,
+    deactivateUser,
+    updateRole,
+    inviteUser,
+    loading,
+    canInvite,
+    canManageRoles,
+    currentUser: user,
+  };
 }

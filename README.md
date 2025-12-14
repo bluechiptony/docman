@@ -29,6 +29,44 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Environment Setup
+
+- Next.js (`docman`): copy `.env.local.example` to `.env.local` and set URLs.
+- NestJS API (`doc-man-ws`): copy `.env.example` to `.env` and set `PORT` as needed.
+- FastAPI convert (`doc-convert`): copy `.env.example` to `.env` to set `HOST`/`PORT`.
+
+Example values:
+
+```bash
+# docman/.env.local
+NEXT_PUBLIC_API_URL=http://localhost:3500
+NEXT_PUBLIC_CONVERT_API_URL=http://localhost:8001
+
+# doc-man-ws/.env
+PORT=3500
+
+# doc-convert/.env
+HOST=127.0.0.1
+PORT=8001
+```
+
+## Run Locally
+
+In separate terminals:
+
+```bash
+# Frontend
+cd docman && pnpm dev
+
+# NestJS API
+cd doc-man-ws && pnpm start:dev
+
+# FastAPI service
+cd doc-convert && uvicorn app.main:app --host $HOST --port $PORT --reload
+```
+
+Alternatively, run `python app/main.py` in `doc-convert` to use `.env` directly.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

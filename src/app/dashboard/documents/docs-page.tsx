@@ -48,9 +48,9 @@ type Document = {
 
 // --------- Mock Data ----------
 const mockFolders: Folder[] = [
-  { id: "1", name: "HR", updatedAt: "2025-10-05", parentId: null },
-  { id: "2", name: "Finance", updatedAt: "2025-09-28", parentId: null },
-  { id: "3", name: "Policies", updatedAt: "2025-10-03", parentId: "1" },
+  { id: "1", name: "James Madison", updatedAt: "2025-10-05", parentId: null },
+  { id: "2", name: "Lyle Alzaydo", updatedAt: "2025-09-28", parentId: null },
+  { id: "3", name: "Micki Manning", updatedAt: "2025-10-03", parentId: "1" },
 ];
 
 const mockDocuments: Document[] = [

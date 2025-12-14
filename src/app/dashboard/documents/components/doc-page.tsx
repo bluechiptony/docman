@@ -7,15 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Toaster, toast } from "sonner";
 import { DocumentsGrid } from "./DocumentsGrid";
 import UploadModal from "./UploadModal";
+import CreateFolderModal from "./CreateFolderModal";
 import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { useDocuments } from "../hooks/useDocuments";
 
 export default function DocumentsPage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const { path, visibleItems, createFolder, openFolder, goBackTo, moveItem, handleUpload, addDocument } =
     useDocuments();
+  const parentFolderId = path.length > 0 ? path[path.length - 1].id : undefined;
+
+  // console.log(parentFolderId);
+  // console.log(path);
 
   /** 🔴 Handle Delete */
   const handleDelete = (id: string) => {
@@ -24,11 +30,7 @@ export default function DocumentsPage() {
 
   /** 📁 New Folder */
   const handleNewFolder = () => {
-    const folderName = prompt("Enter folder name");
-    if (folderName) {
-      createFolder(folderName);
-      toast.success(`Folder "${folderName}" created`);
-    }
+    setIsCreateFolderOpen(true);
   };
 
   /** 🔍 Filter documents by name */
@@ -40,7 +42,7 @@ export default function DocumentsPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h1 className="text-2xl font-semibold">Documents</h1>
+        <h1 className="text-2xl font-semibold">{path.length === 0 ? "Documents" : path[path.length - 1].name}</h1>
         <div className="flex gap-2">
           <Button onClick={handleNewFolder} variant="outline" size="sm">
             <FolderPlus className="mr-2 h-4 w-4" /> New Folder
@@ -86,6 +88,16 @@ export default function DocumentsPage() {
         onClose={() => setIsUploadOpen(false)}
         onUploadComplete={(fileName, fileUrl) => {
           addDocument(fileName, fileUrl);
+        }}
+      />
+
+      {/* Create Folder Modal */}
+      <CreateFolderModal
+        isOpen={isCreateFolderOpen}
+        parentFolderId={parentFolderId ? parentFolderId : undefined}
+        onClose={() => setIsCreateFolderOpen(false)}
+        onCreateFolder={(folderName, parentFolderId) => {
+          createFolder(folderName, parentFolderId);
         }}
       />
 
