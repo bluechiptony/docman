@@ -7,6 +7,7 @@ import GeneralSettings from "@/components/settings/GeneralSettings";
 import StorageSettings from "@/components/settings/StorageSettings";
 import UserAccessSettings from "@/components/settings/UserAccessSettings";
 import AppearanceSettings from "@/components/settings/AppearanceSettings";
+import DocumentTypesSettings from "@/components/settings/DocumentTypesSettings";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
@@ -21,6 +22,7 @@ export default function SettingsPage() {
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="storage">Storage</TabsTrigger>
               <TabsTrigger value="users">User & Access</TabsTrigger>
+              <TabsTrigger value="document-types">Document Types</TabsTrigger>
               <TabsTrigger value="appearance">Appearance</TabsTrigger>
             </TabsList>
 
@@ -34,6 +36,10 @@ export default function SettingsPage() {
 
             <TabsContent value="users">
               <UserAccessSettings />
+            </TabsContent>
+
+            <TabsContent value="document-types">
+              <DocumentTypesSettings />
             </TabsContent>
 
             <TabsContent value="appearance">

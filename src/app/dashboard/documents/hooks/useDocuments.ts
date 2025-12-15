@@ -139,7 +139,11 @@ export function useDocuments() {
 
   /** 📤 Upload Files (parallel) */
   const handleUpload = useCallback(
-    async (files: File[], onProgress?: (fileName: string, percent: number) => void) => {
+    async (
+      files: File[],
+      onProgress?: (fileName: string, percent: number) => void,
+      extra?: { documentTypeId?: string }
+    ) => {
       const currentFolderId = path[path.length - 1].id;
 
       console.log("📤 Starting upload for files in path:", path);
@@ -167,9 +171,13 @@ export function useDocuments() {
             await completeUpload(secUrl, {
               file,
               name: file.name,
-              parentId: currentFolderId,
+              folderId: currentFolderId,
               type: "file",
               size: file.size,
+              documentTypeId: extra?.documentTypeId,
+              organizationId: currentOrganizationId,
+              uploadedById: user?.id,
+              mimeType: file.type,
             });
 
             // ✅ Save the file under the current folder
@@ -186,7 +194,8 @@ export function useDocuments() {
               },
             ]);
           } catch (error) {
-            toast.message(`Upload failed`, { id: toastId });
+            console.error("Upload error:", error);
+            toast.error(`Upload failed`, { id: toastId });
             toast.dismiss(toastId);
           }
 
@@ -310,10 +319,19 @@ export function useDocuments() {
         type: metadata.type,
         size: metadata.size,
         name: metadata.name,
+        documentTypeId: metadata.documentTypeId,
+        organizationId: metadata.organizationId,
+        uploadedById: metadata.uploadedById,
+        folderId: metadata.folderId,
+        mimeType: metadata.mimeType,
       });
     } catch (err: any) {
       console.error("❌ Complete upload failed:", err.message);
-      toast.warning(`Failed to finalize upload`);
+
+      // Show specific error message from backend
+      const errorMessage = err.response?.data?.message || "Failed to finalize upload";
+      toast.error(errorMessage);
+      throw err;
     }
   };
 
