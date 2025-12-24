@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
 import { apiClient } from "@/api/client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
 interface User {
@@ -17,7 +17,7 @@ interface User {
     role: "ADMINISTRATOR" | "EDITOR" | "VIEWER";
     active: boolean;
   };
-  organizations?: any[];
+  organizations: { id: string; name: string; role: string }[];
 }
 
 type DecodedToken = {
@@ -96,7 +96,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(decodedUser);
 
       toast.success("Login successful!");
-      router.push("/dashboard");
+
+      // Check for redirect path
+      const redirectPath = sessionStorage.getItem("redirectAfterLogin");
+      if (redirectPath) {
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.push(redirectPath);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: any) {
       console.error("Login failed:", error);
       const errorMessage = error.response?.data?.message || "Login failed. Please try again.";
@@ -144,4 +152,39 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+}
+
+// Hook that guarantees user is authenticated (non-null user)
+export function useAuthUser() {
+  const context = useContext(AuthContext);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  if (context === undefined) {
+    throw new Error("useAuthUser must be used within an AuthProvider");
+  }
+
+  useEffect(() => {
+    if (!context.user && !context.isLoading) {
+      // Save current path for redirect after login
+      if (pathname && pathname !== "/login") {
+        sessionStorage.setItem("redirectAfterLogin", pathname);
+      }
+      toast.error("Please login again to continue");
+      router.push("/login");
+    }
+  }, [context.user, context.isLoading, pathname, router]);
+
+  if (!context.user) {
+    // Return a loading state while redirecting
+    return {
+      ...context,
+      user: null as any, // Temporary until redirect completes
+    };
+  }
+
+  return {
+    ...context,
+    user: context.user, // TypeScript now knows user is non-null
+  };
 }

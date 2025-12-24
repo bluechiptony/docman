@@ -7,20 +7,19 @@ import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Link as LinkIcon, Copy } from "lucide-react";
+import { Trash2, Link as LinkIcon, Copy, Loader2, X } from "lucide-react";
+import {
+  getDocumentShares,
+  getDocumentPublicShare,
+  updateDocumentPublicShare,
+  addDocumentShare,
+  updateDocumentShare,
+  revokeDocumentShare,
+  type SharedUser,
+} from "@/lib/documents.service";
+import { searchUsers, type PlatformUser } from "@/lib/users.service";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface SharedUser {
-  id: string;
-  name: string;
-  email: string;
-  permission: string;
-}
+interface User extends PlatformUser {}
 
 interface ShareDialogProps {
   open: boolean;
@@ -32,7 +31,7 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
   const [users, setUsers] = useState<User[]>([]);
   const [sharedUsers, setSharedUsers] = useState<SharedUser[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [permission, setPermission] = useState("view");
 
   // Public sharing
@@ -40,124 +39,216 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
   const [publicPermission, setPublicPermission] = useState("view");
   const [publicLink, setPublicLink] = useState("");
 
+  // Loading / optimistic state
+  const [loadingSharedInfo, setLoadingSharedInfo] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [shareSubmitting, setShareSubmitting] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [revokingUserId, setRevokingUserId] = useState<string | null>(null);
+  const [publicUpdating, setPublicUpdating] = useState(false);
+  const [publicPermissionUpdating, setPublicPermissionUpdating] = useState(false);
+
   // Fetch existing shares and public state
   useEffect(() => {
-    if (open) {
-      Promise.all([
-        fetch(`/api/documents/${documentId}/shares`).then((res) => res.json()),
-        fetch(`/api/documents/${documentId}/public`).then((res) => res.json()),
-      ])
-        .then(([shared, pub]) => {
-          setSharedUsers(shared);
-          setIsPublic(pub.isPublic);
-          setPublicPermission(pub.permission || "view");
-          setPublicLink(pub.link || "");
-        })
-        .catch(() => toast.error("Failed to load sharing info"));
-    }
+    if (!open) return;
+    setLoadingSharedInfo(true);
+    (async () => {
+      try {
+        const [shared, pub] = await Promise.all([getDocumentShares(documentId), getDocumentPublicShare(documentId)]);
+        setSharedUsers(shared);
+        setIsPublic(pub.isPublic);
+        setPublicPermission(pub.permission || "view");
+        setPublicLink(pub.link || "");
+      } catch (e) {
+        console.error(e);
+        toast.error("Failed to load sharing info");
+      } finally {
+        setLoadingSharedInfo(false);
+      }
+    })();
   }, [open, documentId]);
 
   // Search platform users
   useEffect(() => {
-    if (search.trim().length > 1) {
-      fetch(`/api/users?search=${search}`)
-        .then((res) => res.json())
-        .then(setUsers)
-        .catch(() => toast.error("Failed to fetch users"));
-    }
+    let active = true;
+    (async () => {
+      const q = search.trim();
+      if (q.length > 1) {
+        try {
+          if (active) setUsersLoading(true);
+          const results = await searchUsers(q);
+          console.log(results);
+
+          if (active) setUsers(results);
+        } catch (e) {
+          if (active) toast.error("Failed to fetch users");
+        } finally {
+          if (active) setUsersLoading(false);
+        }
+      } else {
+        setUsers([]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [search]);
 
-  // Handle new share
+  // Handle user selection from search results
+  const handleSelectUser = (user: User) => {
+    // Check if user is already selected
+    if (selectedUsers.some((u) => u.id === user.id)) {
+      toast.warning("User already selected");
+      return;
+    }
+    // Check if user is already shared with
+    if (sharedUsers.some((u) => u.id === user.id)) {
+      toast.warning("Document already shared with this user");
+      return;
+    }
+    setSelectedUsers((prev) => [...prev, user]);
+    setSearch(""); // Clear search after selection
+  };
+
+  // Remove user from selected list
+  const handleRemoveSelectedUser = (userId: string) => {
+    setSelectedUsers((prev) => prev.filter((u) => u.id !== userId));
+  };
+
+  // Handle sharing with all selected users
   const handleShare = async () => {
-    if (!selectedUser) return toast.warning("Select a user first");
+    if (selectedUsers.length === 0) return toast.warning("Select at least one user");
 
-    const res = await fetch(`/api/documents/${documentId}/share`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: selectedUser.id,
-        permission,
-      }),
-    });
+    setShareSubmitting(true);
+    const successfulShares: SharedUser[] = [];
+    const failedShares: string[] = [];
 
-    if (res.ok) {
-      toast.success(`Shared with ${selectedUser.name} (${permission})`);
-      const newUser = await res.json();
-      setSharedUsers((prev) => [...prev, newUser]);
-      setSelectedUser(null);
+    // Create temp users for optimistic update
+    const tempUsers: SharedUser[] = selectedUsers.map((user) => ({
+      id: `temp_${user.id}`,
+      name: user.name,
+      email: user.email,
+      permission: permission as "view" | "edit",
+    }));
+    setSharedUsers((prev) => [...prev, ...tempUsers]);
+
+    try {
+      // Share with each selected user
+      for (const user of selectedUsers) {
+        try {
+          const newUser = await addDocumentShare(documentId, {
+            userId: user.id,
+            permission: permission as "view" | "edit",
+          });
+          successfulShares.push(newUser);
+        } catch (e) {
+          failedShares.push(user.name);
+        }
+      }
+
+      // Update shared users list - replace temp users with actual data
+      setSharedUsers((prev) => {
+        const withoutTemp = prev.filter((u) => !u.id.startsWith("temp_"));
+        return [...withoutTemp, ...successfulShares];
+      });
+
+      // Show results
+      if (successfulShares.length > 0) {
+        toast.success(`Shared with ${successfulShares.length} user(s)`);
+      }
+      if (failedShares.length > 0) {
+        toast.error(`Failed to share with: ${failedShares.join(", ")}`);
+      }
+
+      // Clear selection
+      setSelectedUsers([]);
       setSearch("");
-    } else {
+    } catch (e) {
+      // Remove all temp users on complete failure
+      setSharedUsers((prev) => prev.filter((u) => !u.id.startsWith("temp_")));
       toast.error("Failed to share document");
+    } finally {
+      setShareSubmitting(false);
     }
   };
 
   // Handle permission change for specific user
   const handlePermissionChange = async (userId: string, newPermission: string) => {
-    const res = await fetch(`/api/documents/${documentId}/share/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ permission: newPermission }),
-    });
-
-    if (res.ok) {
-      setSharedUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, permission: newPermission } : u)));
+    const prevPerm = sharedUsers.find((u) => u.id === userId)?.permission as "view" | "edit" | undefined;
+    setSharedUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, permission: newPermission as "view" | "edit" } : u))
+    );
+    setUpdatingUserId(userId);
+    try {
+      const updated = await updateDocumentShare(documentId, userId, newPermission as "view" | "edit");
+      setSharedUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, permission: updated.permission } : u)));
       toast.success("Permission updated");
-    } else {
+    } catch {
+      // rollback
+      if (prevPerm) {
+        setSharedUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, permission: prevPerm } : u)));
+      }
       toast.error("Failed to update permission");
+    } finally {
+      setUpdatingUserId(null);
     }
   };
 
   // Handle revoke user
   const handleRevoke = async (userId: string) => {
-    const res = await fetch(`/api/documents/${documentId}/share/${userId}`, {
-      method: "DELETE",
-    });
-
-    if (res.ok) {
-      setSharedUsers((prev) => prev.filter((u) => u.id !== userId));
+    const prevList = sharedUsers;
+    setSharedUsers((prev) => prev.filter((u) => u.id !== userId));
+    setRevokingUserId(userId);
+    try {
+      await revokeDocumentShare(documentId, userId);
       toast.success("Access revoked");
-    } else {
+    } catch {
+      // rollback
+      setSharedUsers(prevList);
       toast.error("Failed to revoke access");
+    } finally {
+      setRevokingUserId(null);
     }
   };
 
   // Handle public sharing toggle
   const handleTogglePublic = async (checked: boolean) => {
-    const res = await fetch(`/api/documents/${documentId}/public`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const prevIsPublic = isPublic;
+    const prevLink = publicLink;
+    setIsPublic(checked);
+    setPublicUpdating(true);
+    try {
+      const data = await updateDocumentPublicShare(documentId, {
         isPublic: checked,
-        permission: publicPermission,
-      }),
-    });
-
-    if (res.ok) {
-      setIsPublic(checked);
-      const data = await res.json();
+        permission: publicPermission as "view" | "edit",
+      });
       setPublicLink(data.link || "");
       toast.success(checked ? "Public sharing enabled" : "Public sharing disabled");
-    } else {
+    } catch {
+      setIsPublic(prevIsPublic);
+      setPublicLink(prevLink);
       toast.error("Failed to update public access");
+    } finally {
+      setPublicUpdating(false);
     }
   };
 
   // Handle public permission change
   const handlePublicPermissionChange = async (val: string) => {
+    const prev = publicPermission;
     setPublicPermission(val);
-    const res = await fetch(`/api/documents/${documentId}/public`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    setPublicPermissionUpdating(true);
+    try {
+      await updateDocumentPublicShare(documentId, {
         isPublic,
-        permission: val,
-      }),
-    });
-
-    if (res.ok) {
+        permission: val as "view" | "edit",
+      });
       toast.success("Public permission updated");
-    } else {
+    } catch {
+      setPublicPermission(prev);
       toast.error("Failed to update permission");
+    } finally {
+      setPublicPermissionUpdating(false);
     }
   };
 
@@ -169,6 +260,7 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
+        
         <DialogHeader>
           <DialogTitle>Share Document</DialogTitle>
         </DialogHeader>
@@ -176,37 +268,93 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
         <div className="space-y-6">
           {/* Search & Add User */}
           <div className="space-y-4">
-            <Command>
-              <CommandInput placeholder="Search users..." onValueChange={setSearch} />
-              <CommandList>
-                {users.map((user) => (
-                  <CommandItem key={user.id} onSelect={() => setSelectedUser(user)}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{user.name}</span>
-                      <span className="text-xs text-muted-foreground">{user.email}</span>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandList>
+            <Command className="border rounded-lg">
+              <CommandInput placeholder="Search users..." value={search} onValueChange={setSearch} />
+              {(usersLoading || search.length > 1) && (
+                <CommandList className="max-h-[200px]">
+                  {usersLoading && (
+                    <CommandItem disabled>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Searching...
+                      </div>
+                    </CommandItem>
+                  )}
+                  {!usersLoading && search && users.length === 0 && (
+                    <CommandItem disabled>
+                      <div className="text-sm text-muted-foreground">No users found</div>
+                    </CommandItem>
+                  )}
+                  {!usersLoading &&
+                    users.map((user) => {
+                      const isAlreadySelected = selectedUsers.some((u) => u.id === user.id);
+                      const isAlreadyShared = sharedUsers.some((u) => u.id === user.id);
+                      const isDisabled = isAlreadySelected || isAlreadyShared;
+
+                      return (
+                        <CommandItem
+                          key={user.id}
+                          onSelect={() => !isDisabled && handleSelectUser(user)}
+                          disabled={isDisabled}
+                          className={isDisabled ? "opacity-50" : ""}
+                        >
+                          <div className="flex flex-col flex-1">
+                            <span className="font-medium">{user.name}</span>
+                            <span className="text-xs text-muted-foreground">{user.email}</span>
+                          </div>
+                          {isAlreadySelected && (
+                            <span className="ml-auto text-xs text-muted-foreground">(Selected)</span>
+                          )}
+                          {isAlreadyShared && (
+                            <span className="ml-auto text-xs text-muted-foreground">(Already shared)</span>
+                          )}
+                        </CommandItem>
+                      );
+                    })}
+                </CommandList>
+              )}
             </Command>
 
-            {selectedUser && (
+            {/* Selected users as pills */}
+            {selectedUsers.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm">
-                  Selected: <span className="font-medium">{selectedUser.name}</span>
-                </p>
-                <Select value={permission} onValueChange={setPermission}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select permission" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="view">View Only</SelectItem>
-                    <SelectItem value="edit">Can Edit</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button className="w-full" onClick={handleShare}>
-                  Share
-                </Button>
+                <p className="text-sm font-medium">Selected Users ({selectedUsers.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded-full px-3 py-1 text-sm"
+                    >
+                      <span className="max-w-[200px] truncate">{user.email}</span>
+                      <button
+                        onClick={() => handleRemoveSelectedUser(user.id)}
+                        className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                        type="button"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <Select value={permission} onValueChange={setPermission}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select permission" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="view">View Only</SelectItem>
+                      <SelectItem value="edit">Can Edit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button className="w-full" onClick={handleShare} disabled={shareSubmitting}>
+                    {shareSubmitting ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Sharing...
+                      </span>
+                    ) : (
+                      `Share with ${selectedUsers.length} user${selectedUsers.length > 1 ? "s" : ""}`
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -226,7 +374,7 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
                     </div>
                     <div className="flex items-center gap-2">
                       <Select value={u.permission} onValueChange={(val) => handlePermissionChange(u.id, val)}>
-                        <SelectTrigger className="w-[110px] h-8">
+                        <SelectTrigger className="w-[110px] h-8" disabled={updatingUserId === u.id}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -239,8 +387,9 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
                         size="icon"
                         className="h-8 w-8 text-red-500 hover:bg-red-100"
                         onClick={() => handleRevoke(u.id)}
+                        disabled={revokingUserId === u.id}
                       >
-                        <Trash2 size={16} />
+                        {revokingUserId === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} />}
                       </Button>
                     </div>
                   </div>
@@ -257,13 +406,13 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
             </h3>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-muted-foreground">Allow public access</span>
-              <Switch checked={isPublic} onCheckedChange={handleTogglePublic} />
+              <Switch checked={isPublic} onCheckedChange={handleTogglePublic} disabled={publicUpdating} />
             </div>
 
             {isPublic && (
               <div className="space-y-2">
                 <Select value={publicPermission} onValueChange={handlePublicPermissionChange}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full" disabled={publicPermissionUpdating}>
                     <SelectValue placeholder="Select permission" />
                   </SelectTrigger>
                   <SelectContent>

@@ -18,6 +18,7 @@ export default function DocumentsPage() {
 
   const { path, visibleItems, createFolder, openFolder, goBackTo, moveItem, handleUpload, addDocument } =
     useDocuments();
+  const currentFolderId = path[path.length - 1]?.id ?? null;
   const parentFolderId = path.length > 0 ? path[path.length - 1].id : undefined;
 
   // console.log(parentFolderId);
@@ -79,6 +80,8 @@ export default function DocumentsPage() {
             console.log("Share", id);
             return "";
           }}
+          onOpenCreateFolder={() => setIsCreateFolderOpen(true)}
+          onOpenUpload={() => setIsUploadOpen(true)}
         />
       </div>
 
@@ -86,6 +89,7 @@ export default function DocumentsPage() {
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
+        currentFolderId={currentFolderId}
         onUploadComplete={(fileName, fileUrl) => {
           addDocument(fileName, fileUrl);
         }}

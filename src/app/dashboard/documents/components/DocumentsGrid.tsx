@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FileText, Folder, MoreVertical, Pencil, Share2, Trash, Copy, Check, Eye } from "lucide-react";
+import { FileText, Folder, FolderPlus, MoreVertical, Pencil, Share2, Trash, UploadCloud, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DocumentItem } from "../hooks/useDocuments";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ShareDialog from "./ShareDialog";
 import DocumentDrawer from "./DocumentDrawer";
+import DocumentViewerModal from "./DocumentViewerModal";
 
 interface Props {
   items: DocumentItem[];
@@ -20,9 +22,21 @@ interface Props {
   onRename: (id: string, newName: string) => void;
   onShare: (id: string) => string; // returns share link
   onUploadComplete?: () => void;
+  onOpenCreateFolder: () => void;
+  onOpenUpload: () => void;
 }
 
-export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename, onShare, onUploadComplete }: Props) {
+export function DocumentsGrid({
+  items,
+  onFolderOpen,
+  onMove,
+  onDelete,
+  onRename,
+  onShare,
+  onUploadComplete,
+  onOpenCreateFolder,
+  onOpenUpload,
+}: Props) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null);
 
@@ -35,17 +49,23 @@ export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename,
   const [shareOpen, setShareOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
 
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerDocId, setViewerDocId] = useState<string | null>(null);
+
   const [newName, setNewName] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
   const handleOpenDocDetails = (docId: string) => {
     setSelectedDoc(docId);
-    console.log("open resource in func");
     setDrawerOpen(true);
+  };
+
+  const handleOpenViewer = (docId: string) => {
+    setViewerDocId(docId);
+    setViewerOpen(true);
   };
 
   // --- Rename logic ---
@@ -103,100 +123,165 @@ export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename,
   const handleDragLeave = () => setHoveredFolder(null);
 
   // --- Empty state ---
+  const renderGridActionsMenu = () => (
+    <ContextMenuContent>
+      <ContextMenuItem onClick={onOpenCreateFolder}>
+        <FolderPlus className="w-4 h-4 mr-2" /> New Folder
+      </ContextMenuItem>
+      <ContextMenuItem onClick={onOpenUpload}>
+        <UploadCloud className="w-4 h-4 mr-2" /> Upload Document
+      </ContextMenuItem>
+    </ContextMenuContent>
+  );
+
   if (items.length === 0)
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground border border-dashed rounded-xl">
-        <Folder className="h-10 w-10 mb-2 opacity-60" />
-        <p>No documents here yet</p>
-      </div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="min-h-2/3 flex flex-col items-center justify-center h-64 text-muted-foreground border border-dashed rounded-xl bg-amber-200">
+            <Folder className="h-10 w-10 mb-2 opacity-60" />
+            <p>No documents here yet</p>
+          </div>
+        </ContextMenuTrigger>
+        {renderGridActionsMenu()}
+      </ContextMenu>
     );
+
+  const statusClass = (status?: string) => {
+    switch (status) {
+      case "APPROVED":
+        return "bg-green-100 text-green-700 border-green-300";
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-700 border-yellow-300";
+      case "REJECTED":
+        return "bg-red-100 text-red-700 border-red-300";
+      case "FLAGGED_FOR_REVIEW":
+        return "bg-orange-100 text-orange-700 border-orange-300";
+      case "UNDER_REVIEW":
+        return "bg-indigo-100 text-indigo-700 border-indigo-300";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 p-4">
-        {items.map((item) => (
-          <ContextMenu key={item.id}>
-            <ContextMenuTrigger>
-              <motion.div
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                draggable
-                onDragStart={() => handleDragStart(item.id)}
-                onDragOver={(e) => item.type === "folder" && handleDragOver(e, item.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={() => item.type === "folder" && handleDrop(item.id)}
-                className={`relative cursor-pointer p-4 rounded-xl border bg-white shadow-sm transition group ${
-                  hoveredFolder === item.id ? "border-amber-500 ring-2 ring-amber-200" : "hover:shadow-md"
-                }`}
-                onDoubleClick={() =>
-                  item.type === "folder" ? onFolderOpen(item.id, item.name) : handleOpenDocDetails(item.id)
-                }
-                onClick={() => {
-                  item.type === "folder" ? null : handleOpenDocDetails(item.id);
-                }}
-              >
-                <div className="flex flex-col items-center gap-3">
-                  {item.type === "folder" ? (
-                    <Folder className={`h-10 w-10 ${hoveredFolder === item.id ? "text-amber-600" : "text-gray-700"}`} />
-                  ) : (
-                    <FileText className="h-10 w-10 text-blue-600" />
-                  )}
-                  <p className="text-sm text-center truncate w-full">{item.name}</p>
-                </div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="h-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 p-4 bg-amber-100">
+            {items.map((item) => {
+              const reviewStatus = item.type === "file" ? item.reviews?.[0]?.status : undefined;
+              const isApproved = reviewStatus === "APPROVED";
+              const showBadge = item.type === "file" && reviewStatus && !isApproved;
 
-                <button className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-gray-500 hover:text-gray-800">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </motion.div>
-            </ContextMenuTrigger>
-
-            <ContextMenuContent>
-              <ContextMenuItem
-                onClick={() => {
-                  // Open document viewer/drawer for this item
-                  if (item.type === "file") {
-                    setSelectedDoc(item.id);
-                    setDrawerOpen(true);
-                  } else {
-                    // If folder, navigate into it
-                    onFolderOpen(item.id, item.name);
+              const card = (
+                <motion.div
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  draggable
+                  onDragStart={() => handleDragStart(item.id)}
+                  onDragOver={(e) => item.type === "folder" && handleDragOver(e, item.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={() => item.type === "folder" && handleDrop(item.id)}
+                  className={`relative p-4 rounded-xl border bg-white shadow-sm transition group ${
+                    hoveredFolder === item.id ? "border-amber-500 ring-2 ring-amber-200" : "hover:shadow-md"
+                  } ${item.type === "file" && !isApproved ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                  onDoubleClick={() =>
+                    item.type === "folder"
+                      ? onFolderOpen(item.id, item.name)
+                      : isApproved && handleOpenDocDetails(item.id)
                   }
-                }}
-              >
-                <Eye className="w-4 h-4 mr-2" /> View
-              </ContextMenuItem>
-              <ContextMenuItem
-                onClick={() => {
-                  setRenameTarget(item);
-                  setNewName(item.name);
-                  setRenameDialogOpen(true);
-                }}
-              >
-                <Pencil className="w-4 h-4 mr-2" /> Rename
-              </ContextMenuItem>
+                  onClick={() => {
+                    if (item.type !== "folder" && isApproved) {
+                      handleOpenDocDetails(item.id);
+                    }
+                  }}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    {item.type === "folder" ? (
+                      <Folder
+                        className={`h-10 w-10 ${hoveredFolder === item.id ? "text-amber-600" : "text-gray-700"}`}
+                      />
+                    ) : (
+                      <FileText className="h-10 w-10 text-blue-600" />
+                    )}
+                    <p className="text-sm text-center truncate w-full">{item.name}</p>
+                  </div>
 
-              <ContextMenuItem
-                onClick={() => {
-                  setSelectedDocument(item.id);
-                  setShareOpen(true);
-                }}
-              >
-                <Share2 className="w-4 h-4 mr-2" /> Share
-              </ContextMenuItem>
+                  {(item.type === "folder" || isApproved) && (
+                    <button className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-gray-500 hover:text-gray-800">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  )}
 
-              <ContextMenuItem
-                onClick={() => {
-                  onDelete(item.id);
-                  toast.success(`${item.name} deleted`);
-                }}
-                className="text-red-600 focus:text-red-700"
-              >
-                <Trash className="w-4 h-4 mr-2" /> Delete
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
-        ))}
-      </div>
+                  {showBadge && (
+                    <div className="mt-3 w-full">
+                      <Badge variant="outline" className={`w-full justify-center text-xs ${statusClass(reviewStatus)}`}>
+                        {reviewStatus}
+                      </Badge>
+                    </div>
+                  )}
+                </motion.div>
+              );
+
+              // Only enable item-level context menu if file is approved or item is a folder
+              if (item.type === "file" && !isApproved) {
+                return <div key={item.id}>{card}</div>;
+              }
+
+              return (
+                <ContextMenu key={item.id}>
+                  <ContextMenuTrigger>{card}</ContextMenuTrigger>
+
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={() => {
+                        if (item.type === "file") {
+                          handleOpenViewer(item.id);
+                        } else {
+                          onFolderOpen(item.id, item.name);
+                        }
+                      }}
+                    >
+                      <Eye className="w-4 h-4 mr-2" /> View
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => {
+                        setRenameTarget(item);
+                        setNewName(item.name);
+                        setRenameDialogOpen(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" /> Rename
+                    </ContextMenuItem>
+
+                    <ContextMenuItem
+                      onClick={() => {
+                        setSelectedDocument(item.id);
+                        setShareOpen(true);
+                      }}
+                    >
+                      <Share2 className="w-4 h-4 mr-2" /> Share
+                    </ContextMenuItem>
+
+                    <ContextMenuItem
+                      onClick={() => {
+                        onDelete(item.id);
+                        toast.success(`${item.name} deleted`);
+                      }}
+                      className="text-red-600 focus:text-red-700"
+                    >
+                      <Trash className="w-4 h-4 mr-2" /> Delete
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
+            })}
+            <br />
+          </div>
+        </ContextMenuTrigger>
+        {renderGridActionsMenu()}
+      </ContextMenu>
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
@@ -222,10 +307,22 @@ export function DocumentsGrid({ items, onFolderOpen, onMove, onDelete, onRename,
       </Dialog>
 
       {/* Share Dialog */}
-
       <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} documentId={selectedDocument ?? ""} />
 
       <DocumentDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} documentId={selectedDoc} />
+
+      <DocumentViewerModal
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        documentId={viewerDocId}
+        documentName={items.find((item) => item.id === viewerDocId)?.name}
+        onShare={() => {
+          if (viewerDocId) {
+            setSelectedDocument(viewerDocId);
+            setShareOpen(true);
+          }
+        }}
+      />
     </>
   );
 }

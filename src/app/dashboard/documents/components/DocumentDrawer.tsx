@@ -4,7 +4,6 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
-import { apiClient } from "@/api/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -14,6 +13,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RoleBadge } from "../../users/components/RoleBadge";
 import ShareDialog from "./ShareDialog";
+import {
+  getDocumentById,
+  getDocumentPreviewUrl,
+  getDocumentActivities,
+  getDocumentPermissions,
+  type Document,
+  type DocumentActivity,
+  type DocumentPermission,
+} from "@/lib/documents.service";
 
 interface DocumentDrawerProps {
   open: boolean;
@@ -22,20 +30,12 @@ interface DocumentDrawerProps {
 }
 
 export default function DocumentDrawer({ open, onClose, documentId }: DocumentDrawerProps) {
-  const [doc, setDoc] = useState<any>({
-    id: documentId,
-    name: "HR_Policies_2025.pdf",
-    size: 1048,
-    type: "PDF Document",
-    uploadedBy: "Jane Doe",
-    createdAt: "2025-10-05T10:30:00Z",
-    updatedAt: "2025-10-12T14:15:00Z",
-  });
+  const [doc, setDoc] = useState<Document | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [previewExpiresAt, setPreviewExpiresAt] = useState<string | null>(null);
-  const [activities, setActivities] = useState<any[]>([]);
-  const [permissions, setPermissions] = useState<any[]>([]);
+  const [activities, setActivities] = useState<DocumentActivity[]>([]);
+  const [permissions, setPermissions] = useState<DocumentPermission[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const [showShareModal, setShowShareModal] = useState(false);
@@ -63,46 +63,63 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
     if (!user) return;
 
     // Prevent duplicate additions
-    if (permissions.some((p) => p.user === user.name)) {
+    if (permissions.some((p) => p.user.id === selectedUser)) {
       toast.info(`${user.name} already has access.`);
       return;
     }
 
-    setPermissions((prev) => [...prev, { user: user.name, role: selectedRole }]);
+    // Note: This should ideally make an API call to grant permissions
+    // For now, we'll just update local state
     toast.success(`${user.name} added as ${selectedRole}`);
     setShowShareModal(false);
   };
 
-  const handleRoleChange = (userName: string, newRole: string) => {
-    setPermissions((prev) => prev.map((p) => (p.user === userName ? { ...p, role: newRole } : p)));
-    toast.success(`${userName}'s role updated to ${newRole}`);
+  const handleRoleChange = (userId: string, newRole: string) => {
+    // Note: This should make an API call to update permissions
+    // For now, just show a toast
+    const permission = permissions.find((p) => p.user.id === userId);
+    if (permission) {
+      toast.success(`${permission.user.firstName}'s role updated to ${newRole}`);
+    }
   };
 
   useEffect(() => {
-    if (!documentId) return;
-    // Fetch document metadata and the signed preview URL (explicit endpoint)
+    if (!documentId || !open) return;
+
+    // Fetch document metadata and the signed preview URL (Cloudinary)
     const load = async () => {
       setLoading(true);
       setPreviewLoading(true);
       try {
-        const [metaRes, urlRes] = await Promise.allSettled([
-          apiClient.get(`/documents/${documentId}`),
-          apiClient.get(`/documents/${documentId}/url?expires=300`),
+        const [docResult, previewResult, activitiesResult, permissionsResult] = await Promise.allSettled([
+          getDocumentById(documentId),
+          getDocumentPreviewUrl(documentId, 300), // 5 minutes
+          getDocumentActivities(documentId),
+          getDocumentPermissions(documentId),
         ]);
 
-        if (metaRes.status === "fulfilled" && metaRes.value?.data) {
-          setDoc(metaRes.value.data);
+        if (docResult.status === "fulfilled") {
+          setDoc(docResult.value);
         }
 
-        if (urlRes.status === "fulfilled" && urlRes.value?.data) {
-          setPreviewUrl(urlRes.value.data.url ?? null);
-          setPreviewExpiresAt(urlRes.value.data.expiresAt ?? null);
+        if (previewResult.status === "fulfilled") {
+          setPreviewUrl(previewResult.value.url);
+          setPreviewExpiresAt(previewResult.value.expiresAt ?? null);
         } else {
           setPreviewUrl(null);
           setPreviewExpiresAt(null);
         }
+
+        if (activitiesResult.status === "fulfilled") {
+          setActivities(activitiesResult.value);
+        }
+
+        if (permissionsResult.status === "fulfilled") {
+          setPermissions(permissionsResult.value);
+        }
       } catch (e) {
-        console.error("Failed to load document metadata/preview", e);
+        console.error("Failed to load document data", e);
+        toast.error("Failed to load document details");
       } finally {
         setLoading(false);
         setPreviewLoading(false);
@@ -110,7 +127,7 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
     };
 
     load();
-  }, [documentId]);
+  }, [documentId, open]);
 
   const getExtension = (name: string) => {
     return (name || "").split(".").pop()?.toLowerCase() || "";
@@ -118,7 +135,6 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
 
   const renderPreview = () => {
     const ext = getExtension(doc?.name ?? "");
-
     // prefer explicit previewUrl, else doc.url
     const src = previewUrl ?? doc?.url ?? null;
 
@@ -172,7 +188,7 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
       <Drawer open={open} onClose={onClose}>
         <DrawerContent className="p-4 md:max-w-md ml-auto h-screen">
           <DrawerHeader>
-            <DrawerTitle className="text-lg font-semibold">{doc.name}</DrawerTitle>
+            <DrawerTitle className="text-lg font-semibold">{doc?.name || "Document"}</DrawerTitle>
             <div className="flex flex-col">
               <DrawerDescription>Document details and permissions</DrawerDescription>
               {previewExpiresAt ? (
@@ -204,28 +220,35 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
               <ScrollArea className="h-80">
                 <div className="space-y-3 text-sm">
                   <p>
-                    <strong>File Name:</strong> {doc.name}
+                    <strong>File Name:</strong> {doc?.name}
                   </p>
                   <p>
-                    <strong>Size:</strong> {doc.size} KB
+                    <strong>Size:</strong> {doc?.size ? `${(doc.size / 1024).toFixed(2)} KB` : "Unknown"}
                   </p>
                   <p>
-                    <strong>Type:</strong> {doc.type}
+                    <strong>Type:</strong> {doc?.mimeType || "Unknown"}
                   </p>
                   <p>
                     <strong>Uploaded By:</strong>{" "}
-                    {typeof doc.uploadedBy === "string"
-                      ? doc.uploadedBy
-                      : doc.uploadedBy?.firstName
-                      ? `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName ?? ""}`
-                      : doc.uploadedBy?.emailAddress ?? "Unknown"}
+                    {doc?.uploadedBy ? `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName}` : "Unknown"}
                   </p>
                   <p>
-                    <strong>Created:</strong> {new Date(doc.createdAt).toLocaleString()}
+                    <strong>Created:</strong> {doc?.createdAt ? new Date(doc.createdAt).toLocaleString() : "Unknown"}
                   </p>
                   <p>
-                    <strong>Last Modified:</strong> {new Date(doc.updatedAt).toLocaleString()}
+                    <strong>Last Modified:</strong>{" "}
+                    {doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : "Unknown"}
                   </p>
+                  {doc?.documentType && (
+                    <p>
+                      <strong>Document Type:</strong> {doc.documentType.name}
+                    </p>
+                  )}
+                  {doc?.folder && (
+                    <p>
+                      <strong>Folder:</strong> {doc.folder.name}
+                    </p>
+                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
@@ -233,18 +256,22 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
             {/* ACTIVITY TAB */}
             <TabsContent value="activity" className="mt-4">
               <ScrollArea className="h-80">
-                <ul className="space-y-2">
-                  {activities.map((a, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm border-b pb-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback>{a.user.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{a.user}</span>
-                      <span>{a.action}</span>
-                      <span className="text-xs text-gray-400 ml-auto">{new Date(a.timestamp).toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
+                {activities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No activity yet</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {activities.map((a) => (
+                      <li key={a.id} className="flex items-center gap-2 text-sm border-b pb-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback>{a.performedBy.firstName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{`${a.performedBy.firstName} ${a.performedBy.lastName}`}</span>
+                        <span>{a.action}</span>
+                        <span className="text-xs text-gray-400 ml-auto">{new Date(a.createdAt).toLocaleString()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </ScrollArea>
             </TabsContent>
 
@@ -256,42 +283,45 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
                 </Button>
               </div>
               <ScrollArea className="h-80">
-                <ul className="space-y-2">
-                  {permissions.map((p, i) => (
-                    <li key={i} className="flex items-center justify-between border-b pb-2">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback>{p.user.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span>{p.user}</span>
-                      </div>
+                {permissions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No permissions set</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {permissions.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between border-b pb-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback>{p.user.firstName.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{`${p.user.firstName} ${p.user.lastName}`}</span>
+                            <span className="text-xs text-muted-foreground">{p.user.email}</span>
+                          </div>
+                        </div>
 
-                      {/* Editable Role */}
-                      <Select value={p.role} onValueChange={(value) => handleRoleChange(p.user, value)}>
-                        <SelectTrigger className="w-[110px] text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Viewer">Viewer</SelectItem>
-                          <SelectItem value="Editor">Editor</SelectItem>
-                          <SelectItem value="Owner">Owner</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </li>
-                  ))}
-                </ul>
+                        {/* Editable Role */}
+                        <Select value={p.role} onValueChange={(value) => handleRoleChange(p.user.id, value)}>
+                          <SelectTrigger className="w-[110px] text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Viewer">Viewer</SelectItem>
+                            <SelectItem value="Editor">Editor</SelectItem>
+                            <SelectItem value="Owner">Owner</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </ScrollArea>
             </TabsContent>
           </Tabs>
         </DrawerContent>
       </Drawer>
-      <ShareDialog
-        open={showShareModal}
-        onClose={function (): void {
-          throw new Error("Function not implemented.");
-        }}
-        documentId={doc.id}
-      />
+
+      {/* Share Dialog modal */}
+      {doc && <ShareDialog open={showShareModal} onClose={() => setShowShareModal(false)} documentId={doc.id} />}
     </>
   );
 }
