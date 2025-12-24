@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
+import { useAuthUser } from "@/providers/auth.provider";
 
 interface DocumentReview {
   id: string;
@@ -46,6 +47,7 @@ interface ReviewStats {
 }
 
 export default function ModerationDashboard() {
+  const { user } = useAuthUser();
   const [reviews, setReviews] = useState<DocumentReview[]>([]);
   const [stats, setStats] = useState<ReviewStats>({});
   const [loading, setLoading] = useState(false);
@@ -53,7 +55,7 @@ export default function ModerationDashboard() {
   const [approvalNotes, setApprovalNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionNotes, setRejectionNotes] = useState("");
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState("PENDING");
 
   useEffect(() => {
     fetchStats();
@@ -88,10 +90,12 @@ export default function ModerationDashboard() {
   const handleApprove = async () => {
     if (!selectedReview) return;
 
+    console.log("Approving review by user:", user.id);
+
     try {
       setLoading(true);
       await apiClient.patch(`/documents/review/${selectedReview.id}/approve`, {
-        reviewedById: "current-user-id", // Replace with actual user ID
+        reviewedById: user.id, // Replace with actual user ID
         notes: approvalNotes,
       });
       toast.success("Document approved");
@@ -116,7 +120,7 @@ export default function ModerationDashboard() {
     try {
       setLoading(true);
       await apiClient.patch(`/documents/review/${selectedReview.id}/reject`, {
-        reviewedById: "current-user-id", // Replace with actual user ID
+        reviewedById: user.id, // Replace with actual user ID
         reason: rejectionReason,
         notes: rejectionNotes,
       });

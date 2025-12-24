@@ -3,7 +3,7 @@
 import { apiClient, uploadClient } from "@/api/client";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/providers/auth.provider";
+import { useAuth, useAuthUser } from "@/providers/auth.provider";
 
 export interface DocumentItem {
   id: string;
@@ -14,6 +14,7 @@ export interface DocumentItem {
   mimeType?: string;
   createdAt?: string;
   url?: string;
+  reviews?: Array<{ id: string; status: string }>;
 }
 
 interface FolderPath {
@@ -22,7 +23,7 @@ interface FolderPath {
 }
 
 export function useDocuments() {
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +32,8 @@ export function useDocuments() {
 
   // 🔍 Show only items in the current folder
   const visibleItems = documents.filter((doc) => doc.parentId === path[path.length - 1].id);
+
+  const currentFolderId = path[path.length - 1]?.id ?? null;
 
   /** 📂 Fetch documents and folders */
   const fetchDocuments = useCallback(async (parentId: string | null = null) => {
@@ -48,6 +51,8 @@ export function useDocuments() {
       const response = await apiClient.get(endpoint);
       // Filter items by parentId if provided
       const items = response.data || [];
+      console.log(response.data);
+
       const filtered = parentId
         ? items.filter((item: DocumentItem) => item.parentId === parentId)
         : items.filter((item: DocumentItem) => item.parentId === null);
@@ -69,8 +74,8 @@ export function useDocuments() {
 
   /** 📁 Create Folder */
   const createFolder = useCallback(
-    async (name: string, parentFolderId?: string) => {
-      const currentFolderId = parentFolderId ?? path[path.length - 1].id;
+    async (name: string, parentFolderId?: string, type?: string, folderRequiredDocumentsId?: string) => {
+      const targetFolderId = parentFolderId ?? currentFolderId;
 
       try {
         if (!user?.organizations || !user?.id) {
@@ -78,18 +83,28 @@ export function useDocuments() {
           return;
         }
 
-        const response = await apiClient.post("/folders/create", {
+        const payload: any = {
           name,
-          organizationId: user.organizations[0]?.organization?.id,
-          parentFolderId: currentFolderId,
+          organizationId: user.organizations[0]?.id,
+          parentFolderId: targetFolderId,
           createdById: user.id,
-        });
+        };
+
+        if (type) {
+          payload.type = type;
+        }
+
+        if (folderRequiredDocumentsId) {
+          payload.folderRequiredDocumentsId = folderRequiredDocumentsId;
+        }
+
+        const response = await apiClient.post("/folders/create", payload);
 
         const newFolder: DocumentItem = {
           id: response.data.id,
           name: response.data.name,
           type: "folder",
-          parentId: currentFolderId,
+          parentId: targetFolderId,
           createdAt: response.data.createdAt || new Date().toISOString(),
         };
 
@@ -101,7 +116,7 @@ export function useDocuments() {
         throw error;
       }
     },
-    [path]
+    [currentFolderId, path, user]
   );
 
   /** 📂 Open Folder */
@@ -142,14 +157,12 @@ export function useDocuments() {
     async (
       files: File[],
       onProgress?: (fileName: string, percent: number) => void,
-      extra?: { documentTypeId?: string }
+      extra?: { documentTypeId?: string; targetFolderId?: string | null }
     ) => {
-      const currentFolderId = path[path.length - 1].id;
-
-      console.log("📤 Starting upload for files in path:", path);
+      const targetFolderId = extra?.targetFolderId ?? currentFolderId;
 
       // Get current organization and folder IDs
-      const currentOrganizationId = user?.organizations?.[0]?.organization?.id;
+      const currentOrganizationId = user?.organizations?.[0]?.id;
 
       await Promise.all(
         files.map(async (file) => {
@@ -158,7 +171,7 @@ export function useDocuments() {
 
           try {
             // 1️⃣ Get presigned URL with folder path and metadata
-            const presigned = await getPresignedUrl(file, currentOrganizationId, currentFolderId);
+            const presigned = await getPresignedUrl(file, currentOrganizationId, targetFolderId ?? undefined);
 
             // 2️⃣ Upload to bucket
             const secUrl = await uploadToCloudinaryBucket(file, presigned, (percent) => {
@@ -171,7 +184,7 @@ export function useDocuments() {
             await completeUpload(secUrl, {
               file,
               name: file.name,
-              folderId: currentFolderId,
+              folderId: targetFolderId,
               type: "file",
               size: file.size,
               documentTypeId: extra?.documentTypeId,
@@ -187,12 +200,13 @@ export function useDocuments() {
                 id,
                 name: file.name,
                 type: "file",
-                parentId: currentFolderId,
+                parentId: targetFolderId,
                 size: file.size,
                 mimeType: file.type,
                 createdAt: new Date().toISOString(),
               },
             ]);
+            toast.dismiss(toastId);
           } catch (error) {
             console.error("Upload error:", error);
             toast.error(`Upload failed`, { id: toastId });
@@ -203,7 +217,7 @@ export function useDocuments() {
         })
       );
     },
-    [path]
+    [currentFolderId, path, user]
   );
 
   /** ⛔ Cancel Upload (mocked) */
@@ -312,7 +326,6 @@ export function useDocuments() {
     try {
       metadata.fileNameUrl = fileId;
       delete metadata.file;
-      console.log("🔵 Completing upload with metadata:", metadata);
 
       await apiClient.post(`/storage/upload/complete`, {
         fileUrl: fileId,
@@ -339,6 +352,7 @@ export function useDocuments() {
     documents,
     visibleItems,
     path,
+    currentFolderId,
     createFolder,
     openFolder,
     goBackTo,

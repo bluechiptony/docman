@@ -16,9 +16,10 @@ interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUploadComplete?: (fileName: string, fileUrl: string) => void; // ✅
+  currentFolderId?: string | null;
 }
 
-export default function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalProps) {
+export default function UploadModal({ isOpen, onClose, onUploadComplete, currentFolderId }: UploadModalProps) {
   const { handleUpload, cancelUpload } = useDocuments();
   const { user } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
@@ -115,7 +116,9 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete }: Uploa
               // Update toast progress if needed
               toast.message(`${fileName} ${percent.toFixed(0)}%`, { id: toastId });
             },
-            mode === "typed" ? { documentTypeId: selectedDocTypeId || undefined } : undefined
+            mode === "typed"
+              ? { documentTypeId: selectedDocTypeId || undefined, targetFolderId: currentFolderId ?? null }
+              : { targetFolderId: currentFolderId ?? null }
           );
 
           const uploadedUrl = `https://example-bucket.com/${file.name}`; // or real response
