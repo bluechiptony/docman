@@ -36,8 +36,12 @@ export default function DocumentTypesSettings() {
     description: "",
   });
 
-  const organizationId = user?.organizations?.[0]?.organization?.id;
+  const organizationId = user?.selectedOrganization?.id;
   const userId = user?.id;
+
+  console.log({
+    user,
+  });
 
   // Guard: user must be authenticated
   if (!user || !userId || !organizationId) {

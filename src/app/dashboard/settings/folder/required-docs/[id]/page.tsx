@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { documentTypesApi } from "@/api/document-types";
 import { folderRequiredDocumentsApi } from "@/api/folder-required-documents";
-import { useAuth, useAuthUser } from "@/providers/auth.provider";
+import { useAuth } from "@/providers/auth.provider";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -22,16 +22,21 @@ interface FolderRequiredDocumentConfig {
   documentTypes: DocumentTypeOption[];
 }
 
+interface SelectedDocumentType {
+  id: string;
+  isRequired: boolean;
+}
+
 const FolderRequiredDocumentsDetailPage: React.FC = () => {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuthUser ();
+  const { user } = useAuth();
   const id = params?.id as string;
   const [config, setConfig] = useState<FolderRequiredDocumentConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [editDocumentTypeIds, setEditDocumentTypeIds] = useState<string[]>([]);
+  const [editDocumentTypes, setEditDocumentTypes] = useState<SelectedDocumentType[]>([]);
   const [saving, setSaving] = useState(false);
   const [docTypes, setDocTypes] = useState<DocumentTypeOption[]>([]);
   const [openPopover, setOpenPopover] = useState(false);
@@ -41,7 +46,7 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     async function fetchAll() {
-      if (!user?.organizations?.[0]?.id) {
+      if (!user?.selectedOrganization?.id) {
         if (!cancelled) {
           setError("No organization found");
           setLoading(false);
@@ -52,7 +57,7 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const organizationId = user.organizations[0].id;
+        const organizationId = user.selectedOrganization.id;
         const [cfg, dt] = await Promise.all([
           folderRequiredDocumentsApi.getById(id),
           documentTypesApi.getByOrganization(organizationId),
@@ -60,7 +65,13 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
         if (!cancelled) {
           setConfig(cfg);
           setEditName(cfg.name);
-          setEditDocumentTypeIds(cfg.documentTypes.map((d) => d.id));
+          // Map document types to include isRequired flag (default to true)
+          setEditDocumentTypes(
+            cfg.documentTypes.map((d) => ({
+              id: d.id,
+              isRequired: true, // Default to required since we don't have this info from config yet
+            }))
+          );
           setDocTypes(dt);
         }
       } catch (e) {
@@ -73,16 +84,17 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, user]);
+  }, [id, user?.selectedOrganization?.id]);
 
   // Search document types
   useEffect(() => {
-    if (!openPopover || !user?.organizations?.[0]?.id) return;
+    if (!openPopover || !user?.selectedOrganization?.id) return;
     let cancelled = false;
 
     async function searchDocTypes() {
       try {
-        const organizationId = user?.organizations[0].id;
+        const organizationId = user?.selectedOrganization?.id;
+        if (!organizationId) return;
         const data = searchTerm
           ? await documentTypesApi.searchByName(organizationId, searchTerm)
           : await documentTypesApi.getByOrganization(organizationId);
@@ -97,13 +109,19 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [searchTerm, openPopover, user]);
+  }, [searchTerm, openPopover, user?.selectedOrganization?.id]);
 
   const toggleDocumentType = (id: string) => {
-    setEditDocumentTypeIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    setEditDocumentTypes((prev) => {
+      const exists = prev.find((item) => item.id === id);
+      if (exists) {
+        return prev.filter((item) => item.id !== id);
+      }
+      return [...prev, { id, isRequired: true }];
+    });
   };
 
-  const selectedDocTypes = docTypes.filter((dt) => editDocumentTypeIds.includes(dt.id));
+  const selectedDocTypes = docTypes.filter((dt) => editDocumentTypes.some((selected) => selected.id === dt.id));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +131,7 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
       return;
     }
 
-    if (editDocumentTypeIds.length === 0) {
+    if (editDocumentTypes.length === 0) {
       setError("Please select at least one document type");
       return;
     }
@@ -123,7 +141,7 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
     try {
       const updated = await folderRequiredDocumentsApi.update(id, {
         name: editName,
-        documentTypeIds: editDocumentTypeIds,
+        documentTypeIds: editDocumentTypes,
       });
       setConfig(updated);
       toast.success("Configuration updated successfully");
@@ -164,16 +182,19 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
 
           {selectedDocTypes.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
-              {selectedDocTypes.map((dt) => (
-                <Badge
-                  key={dt.id}
-                  variant="secondary"
-                  className="cursor-pointer"
-                  onClick={() => toggleDocumentType(dt.id)}
-                >
-                  {dt.name} ×
-                </Badge>
-              ))}
+              {selectedDocTypes.map((dt) => {
+                const selected = editDocumentTypes.find((s) => s.id === dt.id);
+                return (
+                  <Badge
+                    key={dt.id}
+                    variant={selected?.isRequired ? "default" : "secondary"}
+                    className="cursor-pointer"
+                    onClick={() => toggleDocumentType(dt.id)}
+                  >
+                    {dt.name} {selected?.isRequired ? "•" : "(Optional)"} ×
+                  </Badge>
+                );
+              })}
             </div>
           )}
 
@@ -199,12 +220,12 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
                     {docTypes.map((dt) => (
                       <CommandItem key={dt.id} value={dt.name} onSelect={() => toggleDocumentType(dt.id)}>
                         <Checkbox
-                          checked={editDocumentTypeIds.includes(dt.id)}
+                          checked={editDocumentTypes.some((s) => s.id === dt.id)}
                           onCheckedChange={() => toggleDocumentType(dt.id)}
                           className="mr-2"
                         />
                         {dt.name}
-                        {editDocumentTypeIds.includes(dt.id) && <Check className="ml-auto h-4 w-4" />}
+                        {editDocumentTypes.some((s) => s.id === dt.id) && <Check className="ml-auto h-4 w-4" />}
                       </CommandItem>
                     ))}
                   </CommandGroup>

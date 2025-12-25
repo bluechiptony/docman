@@ -10,14 +10,9 @@ import {
   Upload,
   Edit3,
   Trash2,
-  FileSpreadsheet,
-  FileImage,
   PieChart as PieChartIcon,
   FolderPlus,
   UserPlus,
-  FileBarChart,
-  PlusCircle,
-  File,
 } from "lucide-react";
 import {
   LineChart,
@@ -32,84 +27,153 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { motion } from "framer-motion";
 import { QuickActions } from "./QuickActions";
+import { useAuth } from "@/providers/auth.provider";
+import { getDashboardOverview, getRecentActivity } from "@/lib/dashboard.service";
+import { type ActivityLog } from "@/lib/activity-log.service";
+
+type RecentActivityItem = {
+  id: string;
+  user: string;
+  action: string;
+  target: string;
+  time: string;
+  Icon: typeof Upload;
+};
+
+type UploadPoint = { day: string; uploads: number };
+type DocTypeSlice = { name: string; value: number; color: string };
+const RANGE_OPTIONS = [7, 14, 30];
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
-    totalDocuments: 1240,
-    totalUsers: 87,
-    storageUsed: 6.4,
-    recentUploads: 12,
+    documents: 0,
+    users: 0,
+    folders: 0,
+    storageUsedGb: 0,
+    recentUploads: 0,
   });
-
-  const [activityData] = useState([
-    { day: "Mon", uploads: 8 },
-    { day: "Tue", uploads: 14 },
-    { day: "Wed", uploads: 10 },
-    { day: "Thu", uploads: 18 },
-    { day: "Fri", uploads: 12 },
-    { day: "Sat", uploads: 5 },
-    { day: "Sun", uploads: 7 },
-  ]);
-
-  const [recentActivity] = useState([
-    {
-      id: 1,
-      user: "Alice Johnson",
-      action: "uploaded",
-      document: "Project Proposal.pdf",
-      time: "2 mins ago",
-      icon: Upload,
-    },
-    { id: 2, user: "David Kim", action: "edited", document: "Company Policy.docx", time: "10 mins ago", icon: Edit3 },
-    { id: 3, user: "Maria Lopez", action: "deleted", document: "Old Budget.xlsx", time: "30 mins ago", icon: Trash2 },
-    {
-      id: 4,
-      user: "John Doe",
-      action: "uploaded",
-      document: "Quarterly Report.pptx",
-      time: "1 hour ago",
-      icon: Upload,
-    },
-  ]);
-
-  const [docTypeData] = useState([
-    { name: "PDF", value: 520, color: "#3b82f6", icon: FileText },
-    { name: "Word", value: 340, color: "#16a34a", icon: File },
-    { name: "Excel", value: 210, color: "#facc15", icon: FileSpreadsheet },
-    { name: "Images", value: 170, color: "#f97316", icon: FileImage },
-  ]);
+  const [activityData, setActivityData] = useState<UploadPoint[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [docTypeData, setDocTypeData] = useState<DocTypeSlice[]>([]);
+  const [rangeDays, setRangeDays] = useState<number>(7);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setStats((prev) => ({
-        ...prev,
-        recentUploads: prev.recentUploads + Math.floor(Math.random() * 3),
-      }));
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!user?.selectedOrganization?.id) return;
+    let cancelled = false;
+
+    const loadOverview = async () => {
+      setOverviewLoading(true);
+      setOverviewError(null);
+      try {
+        const orgId = user?.selectedOrganization?.id;
+        if (!orgId) return;
+
+        const overview = await getDashboardOverview(orgId, rangeDays);
+        if (!overview || cancelled) return;
+
+        setStats({
+          documents: overview.totals.documents,
+          users: overview.totals.users,
+          folders: overview.totals.folders,
+          storageUsedGb: overview.totals.storageUsedGb,
+          recentUploads: overview.recentUploads,
+        });
+
+        setActivityData(
+          overview.uploadsPerDay.map((row) => ({
+            day: formatDay(row.date),
+            uploads: row.uploads,
+          }))
+        );
+
+        setDocTypeData(assignColors(overview.documentTypeBreakdown));
+      } catch (err) {
+        if (!cancelled) setOverviewError("Failed to load dashboard stats");
+      } finally {
+        if (!cancelled) setOverviewLoading(false);
+      }
+    };
+
+    loadOverview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.selectedOrganization?.id, rangeDays]);
+
+  useEffect(() => {
+    if (!user?.selectedOrganization?.id) return;
+    let cancelled = false;
+
+    const loadRecentActivity = async () => {
+      setActivityLoading(true);
+      setActivityError(null);
+      try {
+        const orgId = user?.selectedOrganization?.id;
+        if (!orgId) return;
+        const logs = await getRecentActivity(orgId, 5);
+        if (cancelled) return;
+        setRecentActivity(logs.map(mapActivityToItem));
+      } catch (err) {
+        if (!cancelled) setActivityError("Failed to load recent activity");
+      } finally {
+        if (!cancelled) setActivityLoading(false);
+      }
+    };
+
+    loadRecentActivity();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.selectedOrganization?.id]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold mb-4">Dashboard Overview</h1>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-gray-600">Upload range:</span>
+        <div className="flex gap-2">
+          {RANGE_OPTIONS.map((days) => (
+            <button
+              key={days}
+              onClick={() => setRangeDays(days)}
+              className={`rounded-full px-3 py-1 text-sm border ${
+                rangeDays === days ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"
+              }`}
+            >
+              {days}d
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard
           title="Total Documents"
-          value={stats.totalDocuments.toLocaleString()}
+          value={stats.documents.toLocaleString()}
           icon={<FileText className="text-blue-500" />}
         />
         <StatCard
+          title="Total Folders"
+          value={stats.folders.toLocaleString()}
+          icon={<FolderPlus className="text-indigo-500" />}
+        />
+        <StatCard
           title="Active Users"
-          value={stats.totalUsers.toLocaleString()}
+          value={stats.users.toLocaleString()}
           icon={<Users className="text-green-500" />}
         />
         <StatCard
           title="Storage Used"
-          value={`${stats.storageUsed} GB`}
+          value={`${stats.storageUsedGb} GB`}
           icon={<HardDrive className="text-amber-500" />}
         />
         <StatCard title="Recent Uploads" value={stats.recentUploads} icon={<Clock className="text-purple-500" />} />
@@ -137,10 +201,10 @@ export default function DashboardPage() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentActivity data={recentActivity} />
+        <RecentActivity data={recentActivity} loading={activityLoading} error={activityError} />
 
         {/* Document Type Breakdown */}
-        <DocumentTypeBreakdown data={docTypeData} />
+        <DocumentTypeBreakdown data={docTypeData} loading={overviewLoading} error={overviewError} />
       </div>
       {/* Recent Activity */}
     </div>
@@ -163,7 +227,48 @@ function StatCard({ title, value, icon }: { title: string; value: string | numbe
   );
 }
 
-function RecentActivity({ data }: { data: any[] }) {
+function RecentActivity({
+  data,
+  loading,
+  error,
+}: {
+  data: RecentActivityItem[];
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent className="py-8 text-center text-gray-500">Loading activity...</CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent className="py-8 text-center text-red-500">{error}</CardContent>
+      </Card>
+    );
+  }
+
+  if (!data.length) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent className="py-8 text-center text-gray-500">No recent activity yet</CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -171,7 +276,7 @@ function RecentActivity({ data }: { data: any[] }) {
       </CardHeader>
       <CardContent className="divide-y divide-gray-100">
         {data.map((activity) => {
-          const Icon = activity.icon;
+          const Icon = activity.Icon;
           return (
             <div key={activity.id} className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
@@ -186,7 +291,7 @@ function RecentActivity({ data }: { data: any[] }) {
                   <p className="text-sm font-medium">
                     {activity.user}{" "}
                     <span className="text-gray-600 font-normal">
-                      {activity.action} <strong>{activity.document}</strong>
+                      {activity.action} <strong>{activity.target}</strong>
                     </span>
                   </p>
                   <p className="text-xs text-gray-500">{activity.time}</p>
@@ -201,7 +306,107 @@ function RecentActivity({ data }: { data: any[] }) {
   );
 }
 
-function DocumentTypeBreakdown({ data }: { data: any[] }) {
+const actionIconMap: Record<string, typeof Upload> = {
+  upload: Upload,
+  create: FolderPlus,
+  update: Edit3,
+  delete: Trash2,
+  share: UserPlus,
+};
+
+function mapActivityToItem(log: ActivityLog): RecentActivityItem {
+  const fullName = [log.user?.firstName, log.user?.lastName].filter(Boolean).join(" ") || "Someone";
+  const actionLabel = formatAction(log.action);
+  const target = log.document?.name || log.folder?.name || "item";
+  const Icon = actionIconMap[log.action?.toLowerCase?.()] || Upload;
+
+  return {
+    id: log.id,
+    user: fullName,
+    action: actionLabel,
+    target,
+    time: formatTime(log.createdAt),
+    Icon,
+  };
+}
+
+function formatAction(action: string) {
+  if (!action) return "did something to";
+  return action
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatTime(dateString: string) {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString();
+}
+
+const colorPalette = ["#3b82f6", "#16a34a", "#f59e0b", "#f97316", "#a855f7", "#0ea5e9", "#ef4444"];
+
+function assignColors(breakdown: { name: string; value: number }[]): DocTypeSlice[] {
+  return breakdown.map((item, index) => ({
+    ...item,
+    color: colorPalette[index % colorPalette.length],
+  }));
+}
+
+function formatDay(dateString: string) {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { weekday: "short" });
+}
+
+function DocumentTypeBreakdown({
+  data,
+  loading,
+  error,
+}: {
+  data: DocTypeSlice[];
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PieChartIcon className="text-blue-500" size={20} /> Document Type Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-8 text-center text-gray-500">Loading breakdown...</CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PieChartIcon className="text-blue-500" size={20} /> Document Type Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-8 text-center text-red-500">{error}</CardContent>
+      </Card>
+    );
+  }
+
+  if (!data.length) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PieChartIcon className="text-blue-500" size={20} /> Document Type Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-8 text-center text-gray-500">No document type data yet</CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

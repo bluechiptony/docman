@@ -10,13 +10,13 @@ export interface FolderRequiredDocuments {
 
 export interface CreateFolderRequiredDocumentsPayload {
   name: string;
-  documentTypeIds: string[];
+  documentTypeIds: Array<{ id: string; isRequired: boolean }>;
   organizationId: string;
 }
 
 export interface UpdateFolderRequiredDocumentsPayload {
   name?: string;
-  documentTypeIds?: string[];
+  documentTypeIds?: Array<{ id: string; isRequired: boolean }>;
 }
 
 export const folderRequiredDocumentsApi = {

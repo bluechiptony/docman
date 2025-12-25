@@ -16,7 +16,7 @@ const FolderSettingsPage: React.FC = () => {
 
         <Button onClick={() => setIsCreateOpen(true)} variant="outline" className="bg-black text-white">
           <Plus className="w-4 h-4 mr-2" />
-          Add Document Type
+          Add Folder Config
         </Button>
       </div>
 
