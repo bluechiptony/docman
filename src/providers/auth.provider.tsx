@@ -18,6 +18,7 @@ interface User {
     active: boolean;
   };
   organizations: { id: string; name: string; role: string }[];
+  selectedOrganization?: { id: string; name: string; role: string } | null;
 }
 
 type DecodedToken = {
@@ -45,6 +46,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => void;
+  selectOrganization: (organizationId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,9 +60,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize auth state from localStorage
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
+    const storedOrgId = localStorage.getItem("selectedOrganizationId");
     if (storedToken) {
       const extractedUser = extractUserFromToken(storedToken);
       if (extractedUser) {
+        // Set selectedOrganization
+        if (storedOrgId && extractedUser.organizations) {
+          const selected = extractedUser.organizations.find((org) => org.id === storedOrgId);
+          if (selected) {
+            extractedUser.selectedOrganization = selected;
+          } else if (extractedUser.organizations.length > 0) {
+            extractedUser.selectedOrganization = extractedUser.organizations[0];
+          }
+        } else if (extractedUser.organizations && extractedUser.organizations.length > 0) {
+          extractedUser.selectedOrganization = extractedUser.organizations[0];
+        }
         setUser(extractedUser);
         setToken(storedToken);
       } else {
@@ -133,6 +147,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout();
   };
 
+  const selectOrganization = (organizationId: string) => {
+    if (user) {
+      const selected = user.organizations.find((org) => org.id === organizationId);
+      if (selected) {
+        const updatedUser = { ...user, selectedOrganization: selected };
+        setUser(updatedUser);
+        localStorage.setItem("selectedOrganizationId", organizationId);
+      }
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -141,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refreshUser,
+    selectOrganization,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

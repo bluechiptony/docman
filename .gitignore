@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+docman_developer_feature_guide.md
+docman_feature_guide.md

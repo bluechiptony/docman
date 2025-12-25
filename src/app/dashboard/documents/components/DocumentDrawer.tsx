@@ -16,12 +16,12 @@ import ShareDialog from "./ShareDialog";
 import {
   getDocumentById,
   getDocumentPreviewUrl,
-  getDocumentActivities,
   getDocumentPermissions,
   type Document,
-  type DocumentActivity,
   type DocumentPermission,
 } from "@/lib/documents.service";
+import { getDocumentActivityLogs, type ActivityLog } from "@/lib/activity-log.service";
+import { ActivityLogList } from "@/components/common/ActivityLogList";
 
 interface DocumentDrawerProps {
   open: boolean;
@@ -34,7 +34,8 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [previewExpiresAt, setPreviewExpiresAt] = useState<string | null>(null);
-  const [activities, setActivities] = useState<DocumentActivity[]>([]);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState<boolean>(false);
   const [permissions, setPermissions] = useState<DocumentPermission[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -90,11 +91,12 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
     const load = async () => {
       setLoading(true);
       setPreviewLoading(true);
+      setActivitiesLoading(true);
       try {
         const [docResult, previewResult, activitiesResult, permissionsResult] = await Promise.allSettled([
           getDocumentById(documentId),
           getDocumentPreviewUrl(documentId, 300), // 5 minutes
-          getDocumentActivities(documentId),
+          getDocumentActivityLogs(documentId, 1, 50),
           getDocumentPermissions(documentId),
         ]);
 
@@ -111,7 +113,7 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
         }
 
         if (activitiesResult.status === "fulfilled") {
-          setActivities(activitiesResult.value);
+          setActivities(activitiesResult.value.data);
         }
 
         if (permissionsResult.status === "fulfilled") {
@@ -123,6 +125,7 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
       } finally {
         setLoading(false);
         setPreviewLoading(false);
+        setActivitiesLoading(false);
       }
     };
 
@@ -256,22 +259,13 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
             {/* ACTIVITY TAB */}
             <TabsContent value="activity" className="mt-4">
               <ScrollArea className="h-80">
-                {activities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No activity yet</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {activities.map((a) => (
-                      <li key={a.id} className="flex items-center gap-2 text-sm border-b pb-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback>{a.performedBy.firstName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{`${a.performedBy.firstName} ${a.performedBy.lastName}`}</span>
-                        <span>{a.action}</span>
-                        <span className="text-xs text-gray-400 ml-auto">{new Date(a.createdAt).toLocaleString()}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <ActivityLogList
+                  logs={activities}
+                  loading={activitiesLoading}
+                  showDocument={false}
+                  showFolder={false}
+                  emptyMessage="No activity logs for this document"
+                />
               </ScrollArea>
             </TabsContent>
 

@@ -16,7 +16,7 @@ const DocumentTypesList: React.FC<Props> = ({ reloadKey = 0 }) => {
   useEffect(() => {
     let cancelled = false;
     async function fetchDocumentTypes() {
-      if (!user?.organizations?.[0]?.id) {
+      if (!user?.selectedOrganization?.id) {
         if (!cancelled) {
           setError("No organization found");
           setLoading(false);
@@ -27,7 +27,7 @@ const DocumentTypesList: React.FC<Props> = ({ reloadKey = 0 }) => {
       setLoading(true);
       setError(null);
       try {
-        const organizationId = user.organizations[0].id;
+        const organizationId = user.selectedOrganization.id;
         const data = await documentTypesApi.getByOrganization(organizationId);
         if (!cancelled) setDocumentTypes(data);
       } catch (e) {
@@ -40,7 +40,7 @@ const DocumentTypesList: React.FC<Props> = ({ reloadKey = 0 }) => {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey, user]);
+  }, [reloadKey, user?.selectedOrganization?.id]);
 
   if (loading) return <div>Loading document types...</div>;
   if (error) return <div className="text-red-500">{error}</div>;

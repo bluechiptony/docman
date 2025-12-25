@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { documentTypesApi } from "@/api/document-types";
 import { folderRequiredDocumentsApi } from "@/api/folder-required-documents";
-import { useAuth, useAuthUser } from "@/providers/auth.provider";
+import { useAuth } from "@/providers/auth.provider";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -23,10 +23,15 @@ interface DocumentTypeOption {
   name: string;
 }
 
+interface SelectedDocumentType {
+  id: string;
+  isRequired: boolean;
+}
+
 const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, onCreated }) => {
-  const { user } = useAuthUser();
+  const { user } = useAuth();
   const [name, setName] = useState("");
-  const [documentTypeIds, setDocumentTypeIds] = useState<string[]>([]);
+  const [selectedDocuments, setSelectedDocuments] = useState<SelectedDocumentType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [docTypes, setDocTypes] = useState<DocumentTypeOption[]>([]);
@@ -36,13 +41,14 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
 
   // Initial fetch when modal opens
   useEffect(() => {
-    if (!isOpen || !user?.organizations?.[0]?.id) return;
+    if (!isOpen || !user?.selectedOrganization?.id) return;
     let cancelled = false;
 
     async function fetchDocTypes() {
       setLoadingDocTypes(true);
       try {
-        const organizationId = user?.organizations[0]?.id;
+        const organizationId = user?.selectedOrganization?.id;
+        if (!organizationId) return;
         const data = await documentTypesApi.getByOrganization(organizationId);
         if (!cancelled) setDocTypes(data);
       } catch (e) {
@@ -56,22 +62,19 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
     return () => {
       cancelled = true;
     };
-  }, [isOpen, user]);
+  }, [isOpen, user?.selectedOrganization?.id]);
 
   // Search document types when popover is open and search term changes
   useEffect(() => {
-    if (!openPopover || !user || !user?.organizations?.[0]?.id) return;
-    if (!openPopover) return;
+    if (!openPopover || !user?.selectedOrganization?.id) return;
 
     let cancelled = false;
 
     async function searchDocTypes() {
       setLoadingDocTypes(true);
       try {
-        const organizationId = user.organizations[0].id;
-        // const data = searchTerm
-        //   ? await documentTypesApi.searchByName(organizationId, searchTerm)
-        //   : await documentTypesApi.getByOrganization(organizationId);
+        const organizationId = user?.selectedOrganization?.id;
+        if (!organizationId) return;
 
         const data = searchTerm
           ? await documentTypesApi.searchByName(organizationId, searchTerm)
@@ -101,15 +104,21 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
 
   const reset = () => {
     setName("");
-    setDocumentTypeIds([]);
+    setSelectedDocuments([]);
     setError(null);
   };
 
   const toggleDocumentType = (id: string) => {
-    setDocumentTypeIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    setSelectedDocuments((prev) =>
+      prev.find((d) => d.id === id) ? prev.filter((item) => item.id !== id) : [...prev, { id, isRequired: true }]
+    );
   };
 
-  const selectedDocTypes = docTypes.filter((dt) => documentTypeIds.includes(dt.id));
+  const toggleDocumentRequired = (id: string) => {
+    setSelectedDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, isRequired: !d.isRequired } : d)));
+  };
+
+  const selectedDocTypes = docTypes.filter((dt) => selectedDocuments.find((sd) => sd.id === dt.id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,24 +128,30 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
       return;
     }
 
-    if (documentTypeIds.length === 0) {
+    if (selectedDocuments.length === 0) {
       setError("Please select at least one document type");
       return;
     }
     console.log("Org", user?.organizations);
 
-    if (!user?.organizations?.[0]?.organization?.id) {
+    if (!user?.organizations?.[0]?.id) {
       setError("Organization not found");
       return;
     }
+
+    console.log({
+      name,
+      documentTypeIds: selectedDocuments,
+      organizationId: user.organizations[0]?.id,
+    });
 
     setLoading(true);
     setError(null);
     try {
       await folderRequiredDocumentsApi.create({
         name,
-        documentTypeIds,
-        organizationId: user.organizations[0]?.organization?.id,
+        documentTypeIds: selectedDocuments,
+        organizationId: user.organizations[0]?.id,
       });
       toast.success("Configuration created successfully");
       onCreated();
@@ -175,16 +190,30 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
 
             {selectedDocTypes.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
-                {selectedDocTypes.map((dt) => (
-                  <Badge
-                    key={dt.id}
-                    variant="secondary"
-                    className="cursor-pointer"
-                    onClick={() => toggleDocumentType(dt.id)}
-                  >
-                    {dt.name} ×
-                  </Badge>
-                ))}
+                {selectedDocTypes.map((dt) => {
+                  const selected = selectedDocuments.find((sd) => sd.id === dt.id);
+                  return (
+                    <div key={dt.id} className="flex items-center gap-1">
+                      <Badge
+                        variant={selected?.isRequired ? "default" : "secondary"}
+                        className="cursor-pointer"
+                        onClick={() => toggleDocumentType(dt.id)}
+                      >
+                        {dt.name} ×
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-2 text-xs"
+                        onClick={() => toggleDocumentRequired(dt.id)}
+                        title={selected?.isRequired ? "Click to make optional" : "Click to make required"}
+                      >
+                        {selected?.isRequired ? "Required" : "Optional"}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -209,12 +238,12 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
                       {docTypes.map((dt) => (
                         <CommandItem key={dt.id} value={dt.name} onSelect={() => toggleDocumentType(dt.id)}>
                           <Checkbox
-                            checked={documentTypeIds.includes(dt.id)}
+                            checked={selectedDocuments.some((d) => d.id === dt.id)}
                             onCheckedChange={() => toggleDocumentType(dt.id)}
                             className="mr-2"
                           />
                           {dt.name}
-                          {documentTypeIds.includes(dt.id) && <Check className="ml-auto h-4 w-4" />}
+                          {selectedDocuments.some((d) => d.id === dt.id) && <Check className="ml-auto h-4 w-4" />}
                         </CommandItem>
                       ))}
                     </CommandGroup>

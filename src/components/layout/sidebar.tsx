@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LayoutDashboard, FileText, Users, Settings, Menu, X, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Settings, Menu, X, ShieldCheck, Activity } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +13,7 @@ const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { name: "Documents", icon: FileText, href: "/dashboard/documents" },
   { name: "Users", icon: Users, href: "/dashboard/users" },
+  { name: "Activity", icon: Activity, href: "/dashboard/activity" },
   { name: "Moderation", icon: ShieldCheck, href: "/dashboard/moderation", roles: ["ADMINISTRATOR"] },
   { name: "Settings", icon: Settings, href: "/dashboard/settings" },
 ];
