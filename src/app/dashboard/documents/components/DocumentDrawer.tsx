@@ -255,7 +255,26 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
 
             {/* PERMISSIONS */}
             <TabsContent value="permissions" className="mt-4">
-              <div className="flex justify-end mb-3">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-muted-foreground">Shared with:</span>
+                  {permissions.slice(0, 3).map((p) => (
+                    <div key={p.id} className="flex items-center gap-1">
+                      <Avatar className="h-4 w-4">
+                        <AvatarFallback>{p.user.firstName.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs">
+                        {p.user.firstName} {p.user.lastName}
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {p.role}
+                      </Badge>
+                    </div>
+                  ))}
+                  {permissions.length > 3 ? (
+                    <span className="text-xs text-muted-foreground">+{permissions.length - 3} more</span>
+                  ) : null}
+                </div>
                 <Button size="sm" variant="outline" onClick={() => setShowShareModal(true)}>
                   + Add User
                 </Button>
