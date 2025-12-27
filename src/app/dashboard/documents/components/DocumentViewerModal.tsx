@@ -25,14 +25,11 @@ export default function DocumentViewerModal({
 }: DocumentViewerModalProps) {
   const [doc, setDoc] = useState<Document | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!open || !documentId) return;
-
-    let urlToRevoke: string | null = null;
 
     const fetchDocument = async () => {
       setLoading(true);
@@ -40,17 +37,9 @@ export default function DocumentViewerModal({
         const document = await getDocumentById(documentId);
         setDoc(document);
 
-        // Pull a short-lived URL from the backend, then fetch the bytes and keep it in-app as a blob URL
+        // Pull a short-lived URL from the backend and use it directly for preview (no extra fetch to avoid CORS issues)
         const preview = await getDocumentPreviewUrl(documentId);
-        const response = await fetch(preview.url);
-        if (!response.ok) {
-          throw new Error("Failed to fetch document bytes");
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        urlToRevoke = url;
-        setPreviewUrl(url);
-        setObjectUrl(url);
+        setPreviewUrl(preview.url);
       } catch (error: any) {
         console.error("Failed to fetch document:", error);
         toast.error("Failed to load document");
@@ -60,10 +49,6 @@ export default function DocumentViewerModal({
     };
 
     fetchDocument();
-
-    return () => {
-      if (urlToRevoke) URL.revokeObjectURL(urlToRevoke);
-    };
   }, [open, documentId]);
 
   const handleDownload = async () => {
@@ -73,18 +58,6 @@ export default function DocumentViewerModal({
     }
 
     try {
-      // Prefer the in-app blob if already loaded; otherwise fall back to a signed URL from the backend
-      if (objectUrl) {
-        const link = document.createElement("a");
-        link.href = objectUrl;
-        link.download = doc?.name || "download";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Download started");
-        return;
-      }
-
       const downloadUrl = await downloadDocument(documentId);
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -124,9 +97,10 @@ export default function DocumentViewerModal({
     const fullUrl = previewUrl;
     const mimeType = doc?.mimeType?.toLowerCase() || "";
 
-    // PDF files - Direct preview via Cloudinary URL
+    // PDF files - Direct preview via Cloudinary URL; hide toolbar to discourage download
     if (mimeType.includes("pdf")) {
-      return <iframe src={fullUrl} className="w-full h-full border-0" title={doc?.name || "Document preview"} />;
+      const pdfUrl = `${fullUrl}#toolbar=0&navpanes=0&scrollbar=0`;
+      return <iframe src={pdfUrl} className="w-full h-full border-0" title={doc?.name || "Document preview"} />;
     }
 
     // Image files - Direct display

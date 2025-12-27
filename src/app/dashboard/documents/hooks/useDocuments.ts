@@ -174,14 +174,13 @@ export function useDocuments() {
             const presigned = await getPresignedUrl(file, currentOrganizationId, targetFolderId ?? undefined);
 
             // 2️⃣ Upload to bucket
-            const secUrl = await uploadToCloudinaryBucket(file, presigned, (percent) => {
+            const cloudinaryResponse = await uploadToCloudinaryBucket(file, presigned, (percent) => {
               onProgress?.(file.name, percent);
               toast.message(`${file.name}: ${percent.toFixed(0)}%`, { id: toastId });
             });
 
-            // 3️⃣ Complete upload
-            // await completeUpload(fileId, file, storageKey);
-            await completeUpload(secUrl, {
+            // 3️⃣ Complete upload with Cloudinary response
+            await completeUpload(cloudinaryResponse, {
               file,
               name: file.name,
               folderId: targetFolderId,
@@ -312,7 +311,8 @@ export function useDocuments() {
         });
         console.log("✅ Cloudinary upload response:", response.data);
 
-        return response.data.secure_url;
+        // Return the Cloudinary response which includes secure_url, public_id, resource_type, etc.
+        return response.data;
       }
     } catch (err: any) {
       console.error("❌ Upload failed:", err.message);
@@ -322,13 +322,25 @@ export function useDocuments() {
   };
 
   /** ✅ STEP 3: Notify backend upload is complete */
-  const completeUpload = async (fileId: string, metadata: Record<string, any>) => {
+  const completeUpload = async (cloudinaryResponse: any, metadata: Record<string, any>) => {
     try {
-      metadata.fileNameUrl = fileId;
       delete metadata.file;
 
+      // Extract extension from filename
+      const extension = metadata.name.substring(metadata.name.lastIndexOf(".") + 1).toLowerCase();
+
+      // Determine resource type from Cloudinary response or file type
+      const resourceType =
+        cloudinaryResponse.resource_type || (metadata.mimeType?.startsWith("image/") ? "image" : "raw");
+
       await apiClient.post(`/storage/upload/complete`, {
-        fileUrl: fileId,
+        fileUrl: cloudinaryResponse.secure_url,
+        cloudPublicId: cloudinaryResponse.public_id,
+        resourceType,
+        extension,
+        previewUrl: cloudinaryResponse.thumbnail_url || cloudinaryResponse.eager?.[0]?.secure_url,
+        pageCount: cloudinaryResponse.pages,
+        visibility: "PRIVATE", // default visibility
         type: metadata.type,
         size: metadata.size,
         name: metadata.name,

@@ -1,7 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FileText, Folder, FolderPlus, MoreVertical, Pencil, Share2, Trash, UploadCloud, Eye } from "lucide-react";
+import {
+  FileText,
+  Folder,
+  FolderPlus,
+  MoreVertical,
+  Pencil,
+  Share2,
+  Trash,
+  UploadCloud,
+  Eye,
+  FileSpreadsheet,
+  File,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -25,6 +37,25 @@ interface Props {
   onOpenCreateFolder: () => void;
   onOpenUpload: () => void;
 }
+
+const getFileIcon = (fileName: string) => {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+
+  switch (ext) {
+    case "pdf":
+      return <FileText className="h-10 w-10 text-red-600" />;
+    case "docx":
+    case "doc":
+      return <FileText className="h-10 w-10 text-blue-600" />;
+    case "xlsx":
+    case "xls":
+      return <FileSpreadsheet className="h-10 w-10 text-green-600" />;
+    case "txt":
+      return <File className="h-10 w-10 text-gray-600" />;
+    default:
+      return <FileText className="h-10 w-10 text-blue-600" />;
+  }
+};
 
 export function DocumentsGrid({
   items,
@@ -203,7 +234,7 @@ export function DocumentsGrid({
                         className={`h-10 w-10 ${hoveredFolder === item.id ? "text-amber-600" : "text-gray-700"}`}
                       />
                     ) : (
-                      <FileText className="h-10 w-10 text-blue-600" />
+                      getFileIcon(item.name)
                     )}
                     <p className="text-sm text-center truncate w-full">{item.name}</p>
                   </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Upload,
@@ -97,6 +98,7 @@ const initialData: FileItem[] = [
 
 // --------- Component ----------
 export default function DocumentsPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [folders, setFolders] = useState<Folder[]>(mockFolders);
   const [documents, setDocuments] = useState<Document[]>(mockDocuments);
@@ -247,7 +249,7 @@ export default function DocumentsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {/* Folders */}
           {visibleFolders.map((folder) => (
-            <ContextMenu>
+            <ContextMenu key={folder.id}>
               <ContextMenuTrigger>
                 <motion.div
                   key={folder.id}
@@ -271,7 +273,7 @@ export default function DocumentsPage() {
 
           {/* Documents */}
           {visibleDocuments.map((doc) => (
-            <ContextMenu>
+            <ContextMenu key={doc.id}>
               <ContextMenuTrigger>
                 <motion.div
                   key={doc.id}
@@ -293,7 +295,15 @@ export default function DocumentsPage() {
                   </div>
                   <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition">
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-amber-600">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-600 hover:text-amber-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/dashboard/documents/${doc.id}/view`);
+                        }}
+                      >
                         <Eye size={16} />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-amber-600">
@@ -307,6 +317,12 @@ export default function DocumentsPage() {
                 </motion.div>
               </ContextMenuTrigger>
               <ContextMenuContent className="min-w-[150px] bg-white rounded-md shadow-lg border border-gray-200 p-5 z-50">
+                <ContextMenuItem
+                  className="py-2 cursor-pointer outline-none"
+                  onClick={() => router.push(`/dashboard/documents/${doc.id}/view`)}
+                >
+                  View
+                </ContextMenuItem>
                 <ContextMenuItem className="py-2 cursor-pointer outline-none">Rename</ContextMenuItem>
                 <ContextMenuItem className="py-2 cursor-pointer outline-none">Delete</ContextMenuItem>
                 <ContextMenuItem className="py-2 cursor-pointer outline-none">Archive</ContextMenuItem>
