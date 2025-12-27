@@ -46,12 +46,14 @@ export function DocumentViewer({ documentId, expiresInSeconds = 300 }: DocumentV
 
   const kind = useMemo(() => {
     const mime = doc?.mimeType?.toLowerCase() || "";
+    const ext = doc?.name?.toLowerCase().split(".").pop();
     if (mime.includes("pdf")) return "pdf";
     if (mime.startsWith("image/")) return "image";
     if (mime.startsWith("video/")) return "video";
     if (mime === "text/plain") return "text";
+    if (mime.includes("word") || mime.includes("officedocument") || ext === "docx") return "docx";
     return "other";
-  }, [doc?.mimeType]);
+  }, [doc?.mimeType, doc?.name]);
 
   if (loading) {
     return (
@@ -84,14 +86,26 @@ export function DocumentViewer({ documentId, expiresInSeconds = 300 }: DocumentV
       </div>
 
       <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-        sdsd
-        {kind === "pdf" && <iframe src={previewUrl} className="w-full h-[80vh]" title="PDF preview" />}
+        {kind === "pdf" && (
+          <iframe
+            src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+            className="w-full h-[80vh]"
+            title="PDF preview"
+          />
+        )}
         {kind === "image" && (
           <div className="flex items-center justify-center bg-neutral-50">
             <img src={previewUrl} alt={doc.name} className="max-h-[80vh] object-contain" />
           </div>
         )}
         {kind === "video" && <video className="w-full h-[80vh]" controls src={previewUrl} />}
+        {kind === "docx" && (
+          <iframe
+            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl!)}`}
+            className="w-full h-96 border rounded"
+            title={doc?.name}
+          />
+        )}
         {kind === "text" && <iframe src={previewUrl} className="w-full h-[80vh]" title="Text preview" />}
         {kind === "other" && (
           <div className="p-6 flex flex-col items-center justify-center text-center space-y-2">

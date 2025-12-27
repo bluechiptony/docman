@@ -155,18 +155,18 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
 
     // Images
     if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) {
-      return <img src={src} alt={doc?.name} className="max-h-96 w-full object-contain rounded" />;
+      return <img src={src} alt={doc?.name} className="w-full h-full object-contain rounded" />;
     }
 
     // PDF
     if (ext === "pdf") {
-      return <iframe src={src} className="w-full h-96 border rounded" title={doc?.name} />;
+      return <iframe src={src} className="w-full h-[60vh] border rounded" title={doc?.name} />;
     }
 
     // Office files (docx, xlsx, pptx) - use Office Web Viewer if possible
     if (["docx", "doc", "xlsx", "xls", "pptx", "ppt"].includes(ext)) {
       const officeViewer = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`;
-      return <iframe src={officeViewer} className="w-full h-96 border rounded" title={doc?.name} />;
+      return <iframe src={officeViewer} className="w-full h-[70vh] border rounded" title={doc?.name} />;
     }
 
     // Fallback: attempt to embed as generic file
@@ -189,8 +189,8 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
   return (
     <>
       <Drawer open={open} onClose={onClose}>
-        <DrawerContent className="p-4 md:max-w-md ml-auto h-screen">
-          <DrawerHeader>
+        <DrawerContent className="p-4 w-full min-h-screen">
+          <DrawerHeader className="py-2">
             <DrawerTitle className="text-lg font-semibold">{doc?.name || "Document"}</DrawerTitle>
             <div className="flex flex-col">
               <DrawerDescription>Document details and permissions</DrawerDescription>
@@ -210,9 +210,9 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
             </TabsList>
 
             {/* DETAILS TAB */}
-            <TabsContent value="details" className="mt-4">
-              {/* Preview area */}
-              <div className="mb-4">
+            <TabsContent value="details" className="mt-4 ">
+              {/* Preview area - takes most of the space */}
+              <div className="mb-3 ">
                 {previewLoading ? (
                   <div className="p-4 border rounded text-sm">Loading preview...</div>
                 ) : (
@@ -220,16 +220,14 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
                 )}
               </div>
 
-              <ScrollArea className="h-80">
-                <div className="space-y-3 text-sm">
+              {/* Details section - minimal height */}
+              <ScrollArea className="h-10">
+                <div className="space-y-2 text-xs">
                   <p>
-                    <strong>File Name:</strong> {doc?.name}
+                    <strong>File Name:</strong> {doc?.folder?.name} / {doc?.name}
                   </p>
                   <p>
                     <strong>Size:</strong> {doc?.size ? `${(doc.size / 1024).toFixed(2)} KB` : "Unknown"}
-                  </p>
-                  <p>
-                    <strong>Type:</strong> {doc?.mimeType || "Unknown"}
                   </p>
                   <p>
                     <strong>Uploaded By:</strong>{" "}
@@ -238,20 +236,6 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
                   <p>
                     <strong>Created:</strong> {doc?.createdAt ? new Date(doc.createdAt).toLocaleString() : "Unknown"}
                   </p>
-                  <p>
-                    <strong>Last Modified:</strong>{" "}
-                    {doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : "Unknown"}
-                  </p>
-                  {doc?.documentType && (
-                    <p>
-                      <strong>Document Type:</strong> {doc.documentType.name}
-                    </p>
-                  )}
-                  {doc?.folder && (
-                    <p>
-                      <strong>Folder:</strong> {doc.folder.name}
-                    </p>
-                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
