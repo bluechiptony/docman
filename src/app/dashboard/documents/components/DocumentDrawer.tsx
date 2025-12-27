@@ -155,7 +155,11 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
 
     // Images
     if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) {
-      return <img src={src} alt={doc?.name} className="w-full h-full object-contain rounded" />;
+      return (
+        <div className="flex items-center justify-center bg-gray-50 border rounded overflow-hidden max-h-[70vh]">
+          <img src={doc?.url} alt={doc?.name} className="w-full h-auto object-contain" loading="lazy" />
+        </div>
+      );
     }
 
     // PDF
