@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle, FileText } from "lucide-react";
 import { useAuthUser } from "@/providers/auth.provider";
+import { getDocumentPreviewUrl } from "@/lib/documents.service";
 
 interface DocumentReview {
   id: string;
@@ -24,6 +25,16 @@ interface DocumentReview {
     id: string;
     name: string;
     mimeType: string;
+    folderId?: string;
+    documentTypeId?: string;
+    folder?: {
+      id: string;
+      name: string;
+    };
+    documentType?: {
+      id: string;
+      name: string;
+    };
     uploadedBy: {
       id: string;
       firstName: string;
@@ -56,11 +67,26 @@ export default function ModerationDashboard() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionNotes, setRejectionNotes] = useState("");
   const [activeTab, setActiveTab] = useState("PENDING");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
     fetchReviews("PENDING");
   }, []);
+
+  useEffect(() => {
+    if (selectedReview) {
+      setPreviewLoading(true);
+      setPreviewUrl(null);
+      getDocumentPreviewUrl(selectedReview.documentId, 600)
+        .then((res) => setPreviewUrl(res.url))
+        .catch(() => toast.error("Failed to load document preview"))
+        .finally(() => setPreviewLoading(false));
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [selectedReview]);
 
   const fetchStats = async () => {
     try {
@@ -168,6 +194,60 @@ export default function ModerationDashboard() {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const getExtension = (name: string) => {
+    return (name || "").split(".").pop()?.toLowerCase() || "";
+  };
+
+  const renderPreview = () => {
+    if (previewLoading) {
+      return (
+        <div className="p-4 border rounded text-sm">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 inline-block"></div>
+          <p className="text-gray-600 mt-2">Loading preview...</p>
+        </div>
+      );
+    }
+
+    const src = previewUrl ?? null;
+    const docName = selectedReview?.document?.name ?? "";
+    const ext = getExtension(docName);
+
+    if (!src) {
+      return (
+        <div className="p-4 border rounded text-sm">
+          <p>No preview available.</p>
+        </div>
+      );
+    }
+
+    // Images
+    if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) {
+      return (
+        <div className="flex items-center justify-center bg-gray-50 border rounded overflow-hidden max-h-[70vh]">
+          <img src={src} alt={docName} className="w-full h-auto object-contain" loading="lazy" />
+        </div>
+      );
+    }
+
+    // PDF
+    if (ext === "pdf") {
+      return <iframe src={src} className="w-full h-[60vh] border rounded" title={docName} />;
+    }
+
+    // Office files (docx, xlsx, pptx) - use Office Web Viewer
+    if (["docx", "doc", "xlsx", "xls", "pptx", "ppt"].includes(ext)) {
+      const officeViewer = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`;
+      return <iframe src={officeViewer} className="w-full h-[70vh] border rounded" title={docName} />;
+    }
+
+    // Fallback
+    return (
+      <div className="p-4 border rounded text-sm">
+        <p>Preview not available for this file type.</p>
+      </div>
+    );
   };
 
   return (
@@ -278,84 +358,103 @@ export default function ModerationDashboard() {
 
       {/* Review Details Dialog */}
       <Dialog open={!!selectedReview} onOpenChange={(open) => !open && setSelectedReview(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-7xl h-[90vh]">
           <DialogHeader>
             <DialogTitle>Review Document</DialogTitle>
           </DialogHeader>
 
           {selectedReview && (
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium">Document Details</h3>
-                <p className="text-sm text-gray-600 mt-2">
-                  <strong>Name:</strong> {selectedReview.document.name}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <strong>Type:</strong> {selectedReview.document.mimeType}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <strong>Uploaded by:</strong> {selectedReview.document.uploadedBy.firstName}{" "}
-                  {selectedReview.document.uploadedBy.lastName} ({selectedReview.document.uploadedBy.emailAddress})
-                </p>
-                <p className="text-sm text-gray-600">
-                  <strong>Status:</strong>{" "}
-                  <Badge className={getStatusColor(selectedReview.status)}>
-                    {selectedReview.status.replace(/_/g, " ")}
-                  </Badge>
-                </p>
+            <div className="flex gap-4 h-[calc(90vh-120px)]">
+              {/* Left Side: Document Preview */}
+              <div className="flex-1 border rounded-lg overflow-hidden bg-gray-100">{renderPreview()}</div>
+
+              {/* Right Side: Review Controls */}
+              <div className="w-96 flex flex-col space-y-4 overflow-y-auto">
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <h3 className="font-medium">Document Details</h3>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-600">
+                      <strong>Name:</strong> {selectedReview.document.name}
+                    </p>
+                    {selectedReview.document.folder && (
+                      <p className="text-gray-600">
+                        <strong>Folder:</strong> {selectedReview.document.folder.name}
+                      </p>
+                    )}
+                    {selectedReview.document.documentType && (
+                      <p className="text-gray-600">
+                        <strong>Document Type:</strong> {selectedReview.document.documentType.name}
+                      </p>
+                    )}
+                    <p className="text-gray-600">
+                      <strong>Type:</strong> {selectedReview.document.mimeType}
+                    </p>
+                    <p className="text-gray-600">
+                      <strong>Uploaded by:</strong> {selectedReview.document.uploadedBy.firstName}{" "}
+                      {selectedReview.document.uploadedBy.lastName}
+                    </p>
+                    <p className="text-gray-600 text-xs">{selectedReview.document.uploadedBy.emailAddress}</p>
+                    <p className="text-gray-600 flex items-center gap-2">
+                      <strong>Status:</strong>
+                      <Badge className={getStatusColor(selectedReview.status)}>
+                        {selectedReview.status.replace(/_/g, " ")}
+                      </Badge>
+                    </p>
+                  </div>
+                </div>
+
+                {selectedReview.status === "PENDING" || selectedReview.status === "UNDER_REVIEW" ? (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium">Approval Notes (optional)</label>
+                      <Input
+                        placeholder="Add any notes about approving this document..."
+                        value={approvalNotes}
+                        onChange={(e) => setApprovalNotes(e.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Rejection Reason (optional)</label>
+                      <Input
+                        placeholder="Explain why this document is being rejected..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Additional Notes (optional)</label>
+                      <Input
+                        placeholder="Any additional notes..."
+                        value={rejectionNotes}
+                        onChange={(e) => setRejectionNotes(e.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-4">
+                      <Button onClick={handleApprove} disabled={loading} className="w-full">
+                        {loading ? "Approving..." : "Approve Document"}
+                      </Button>
+                      <Button variant="destructive" onClick={handleReject} disabled={loading} className="w-full">
+                        {loading ? "Rejecting..." : "Reject Document"}
+                      </Button>
+                      <Button variant="outline" onClick={() => setSelectedReview(null)} className="w-full">
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="pt-4">
+                    <Button variant="outline" onClick={() => setSelectedReview(null)} className="w-full">
+                      Close
+                    </Button>
+                  </div>
+                )}
               </div>
-
-              {selectedReview.status === "PENDING" || selectedReview.status === "UNDER_REVIEW" ? (
-                <>
-                  <div>
-                    <label className="text-sm font-medium">Approval Notes (optional)</label>
-                    <Input
-                      placeholder="Add any notes about approving this document..."
-                      value={approvalNotes}
-                      onChange={(e) => setApprovalNotes(e.target.value)}
-                      className="mt-2 h-auto py-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Rejection Reason (optional)</label>
-                    <Input
-                      placeholder="Explain why this document is being rejected..."
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      className="mt-2 h-auto py-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Additional Notes (optional)</label>
-                    <Input
-                      placeholder="Any additional notes..."
-                      value={rejectionNotes}
-                      onChange={(e) => setRejectionNotes(e.target.value)}
-                      className="mt-2 h-auto py-2"
-                    />
-                  </div>
-
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setSelectedReview(null)}>
-                      Cancel
-                    </Button>
-                    <Button variant="destructive" onClick={handleReject} disabled={loading}>
-                      {loading ? "Rejecting..." : "Reject"}
-                    </Button>
-                    <Button onClick={handleApprove} disabled={loading}>
-                      {loading ? "Approving..." : "Approve"}
-                    </Button>
-                  </DialogFooter>
-                </>
-              ) : (
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setSelectedReview(null)}>
-                    Close
-                  </Button>
-                </DialogFooter>
-              )}
             </div>
           )}
         </DialogContent>

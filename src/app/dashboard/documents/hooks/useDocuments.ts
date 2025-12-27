@@ -168,7 +168,7 @@ export function useDocuments() {
       const targetFolderId = extra?.targetFolderId ?? currentFolderId;
 
       // Get current organization and folder IDs
-      const currentOrganizationId = user?.organizations?.[0]?.id;
+      const currentOrganizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
 
       await Promise.all(
         files.map(async (file) => {
