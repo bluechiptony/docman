@@ -157,7 +157,7 @@ export async function getDocumentShares(documentId: string): Promise<SharedUser[
 
 export async function addDocumentShare(
   documentId: string,
-  payload: { userId: string; permission: "view" | "edit" }
+  payload: { userId: string; permission: "VIEW" | "EDIT" }
 ): Promise<SharedUser> {
   return apiRequest<SharedUser>(() => apiClient.post(`/documents/${documentId}/share`, payload));
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -260,7 +259,6 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
-        
         <DialogHeader>
           <DialogTitle>Share Document</DialogTitle>
         </DialogHeader>
@@ -268,51 +266,60 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
         <div className="space-y-6">
           {/* Search & Add User */}
           <div className="space-y-4">
-            <Command className="border rounded-lg">
-              <CommandInput placeholder="Search users..." value={search} onValueChange={setSearch} />
-              {(usersLoading || search.length > 1) && (
-                <CommandList className="max-h-[200px]">
-                  {usersLoading && (
-                    <CommandItem disabled>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Searching...
-                      </div>
-                    </CommandItem>
-                  )}
-                  {!usersLoading && search && users.length === 0 && (
-                    <CommandItem disabled>
-                      <div className="text-sm text-muted-foreground">No users found</div>
-                    </CommandItem>
-                  )}
-                  {!usersLoading &&
-                    users.map((user) => {
-                      const isAlreadySelected = selectedUsers.some((u) => u.id === user.id);
-                      const isAlreadyShared = sharedUsers.some((u) => u.id === user.id);
-                      const isDisabled = isAlreadySelected || isAlreadyShared;
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+              />
 
-                      return (
-                        <CommandItem
-                          key={user.id}
-                          onSelect={() => !isDisabled && handleSelectUser(user)}
-                          disabled={isDisabled}
-                          className={isDisabled ? "opacity-50" : ""}
-                        >
-                          <div className="flex flex-col flex-1">
-                            <span className="font-medium">{user.name}</span>
-                            <span className="text-xs text-muted-foreground">{user.email}</span>
-                          </div>
-                          {isAlreadySelected && (
-                            <span className="ml-auto text-xs text-muted-foreground">(Selected)</span>
-                          )}
-                          {isAlreadyShared && (
-                            <span className="ml-auto text-xs text-muted-foreground">(Already shared)</span>
-                          )}
-                        </CommandItem>
-                      );
-                    })}
-                </CommandList>
+              {/* Dropdown Results */}
+              {search.length > 1 && (
+                <div className="absolute top-full left-0 right-0 mt-1 border rounded-md bg-white shadow-lg z-50 max-h-[200px] overflow-y-auto">
+                  {usersLoading && (
+                    <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Searching...
+                    </div>
+                  )}
+                  {!usersLoading && users.length === 0 && (
+                    <div className="p-3 text-sm text-muted-foreground">No users found</div>
+                  )}
+                  {!usersLoading && users.length > 0 && (
+                    <div className="py-1">
+                      {users.map((user) => {
+                        const isAlreadySelected = selectedUsers.some((u) => u.id === user.id);
+                        const isAlreadyShared = sharedUsers.some((u) => u.id === user.id);
+                        const isDisabled = isAlreadySelected || isAlreadyShared;
+
+                        return (
+                          <button
+                            key={user.id}
+                            onClick={() => !isDisabled && handleSelectUser(user)}
+                            disabled={isDisabled}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
+                              isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex flex-col flex-1">
+                                <span className="font-medium">{user.name}</span>
+                                <span className="text-xs text-muted-foreground">{user.email}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground ml-2">
+                                {isAlreadySelected && <span>(Selected)</span>}
+                                {isAlreadyShared && <span>(Already shared)</span>}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
-            </Command>
+            </div>
 
             {/* Selected users as pills */}
             {selectedUsers.length > 0 && (
