@@ -9,8 +9,10 @@ import { X, UploadCloud } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth.provider";
-import { getDocumentTypes, type DocumentType } from "@/lib/document-types.service";
+import { getDocumentTypes, searchDocumentTypes, type DocumentType } from "@/lib/document-types.service";
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -33,8 +35,10 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
   const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
   const [docTypesLoading, setDocTypesLoading] = useState(false);
   const [selectedDocTypeId, setSelectedDocTypeId] = useState<string | null>(null);
-
-  const organizationId = user?.organizations?.[0]?.organization?.id;
+  const [docTypeQuery, setDocTypeQuery] = useState("");
+  const [docTypeOpen, setDocTypeOpen] = useState(false);
+  const [docTypeResults, setDocTypeResults] = useState<DocumentType[]>([]);
+  const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id ?? null;
 
   useEffect(() => {
     if (isOpen && mode === "typed" && organizationId) {
@@ -45,6 +49,43 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
         .finally(() => setDocTypesLoading(false));
     }
   }, [isOpen, mode, organizationId]);
+
+  // Debounced remote search and open dropdown based on results
+  useEffect(() => {
+    if (!isOpen || mode !== "typed" || !organizationId) return;
+    const q = docTypeQuery.trim();
+    if (q.length < 2) {
+      setDocTypeResults([]);
+      setDocTypeOpen(false);
+      return;
+    }
+
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const results = await searchDocumentTypes(organizationId, q);
+        if (cancelled) return;
+        setDocTypeResults(results);
+        setDocTypeOpen(results.length > 0);
+      } catch (e) {
+        if (cancelled) return;
+        setDocTypeResults([]);
+        setDocTypeOpen(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [docTypeQuery, isOpen, mode, organizationId]);
+
+  const filteredDocTypes = docTypeQuery
+    ? docTypes.filter((dt) => {
+        const q = docTypeQuery.toLowerCase().trim();
+        return dt.name.toLowerCase().includes(q) || (dt.description ? dt.description.toLowerCase().includes(q) : false);
+      })
+    : docTypes;
 
   // ✅ Combine newly added files with existing ones (avoid duplicates)
   const addFiles = useCallback(
@@ -173,33 +214,56 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
           {mode === "typed" && (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Select a document type</p>
-              <div className="border rounded-md">
-                <Command>
-                  <CommandInput placeholder="Search document types..." />
-                  <CommandList>
-                    {docTypesLoading ? (
-                      <div className="p-3 text-sm text-muted-foreground">Loading...</div>
-                    ) : docTypes.length ? (
-                      docTypes.map((dt) => (
-                        <CommandItem
-                          key={dt.id}
-                          onSelect={() => setSelectedDocTypeId(dt.id)}
-                          className={clsx(selectedDocTypeId === dt.id && "bg-muted")}
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">{dt.name}</span>
-                            {dt.description ? (
-                              <span className="text-xs text-muted-foreground">{dt.description}</span>
-                            ) : null}
-                          </div>
-                        </CommandItem>
-                      ))
-                    ) : (
-                      <div className="p-3 text-sm text-muted-foreground">No document types found</div>
-                    )}
-                  </CommandList>
-                </Command>
-              </div>
+              <Popover open={docTypeOpen} onOpenChange={setDocTypeOpen}>
+                <PopoverTrigger asChild>
+                  <div>
+                    <Input
+                      placeholder="Search document types..."
+                      value={docTypeQuery}
+                      onChange={(e) => setDocTypeQuery(e.target.value)}
+                      onFocus={() => setDocTypeOpen(docTypeResults.length > 0)}
+                    />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="p-0 w-[var(--radix-popover-trigger-width)]">
+                  <Command>
+                    <CommandList>
+                      {docTypesLoading ? (
+                        <div className="p-3 text-sm text-muted-foreground">Loading...</div>
+                      ) : docTypeResults.length ? (
+                        docTypeResults.map((dt) => (
+                          <CommandItem
+                            key={dt.id}
+                            onSelect={() => {
+                              setSelectedDocTypeId(dt.id);
+                              setDocTypeQuery(dt.name);
+                              setDocTypeOpen(false);
+                            }}
+                            className={clsx(selectedDocTypeId === dt.id && "bg-muted")}
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{dt.name}</span>
+                              {dt.description ? (
+                                <span className="text-xs text-muted-foreground">{dt.description}</span>
+                              ) : null}
+                            </div>
+                          </CommandItem>
+                        ))
+                      ) : (
+                        <div className="p-3 text-sm text-muted-foreground">No document types found</div>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedDocTypeId ? (
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <span>Selected type: {docTypes.find((d) => d.id === selectedDocTypeId)?.name || "(unknown)"}</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedDocTypeId(null)}>
+                    Clear
+                  </Button>
+                </div>
+              ) : null}
               <p className="text-xs text-muted-foreground">Note: Only a single file is allowed in this mode.</p>
             </div>
           )}

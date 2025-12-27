@@ -32,6 +32,12 @@ export async function getDocumentTypes(organizationId: string): Promise<Document
   return apiRequest<DocumentType[]>(() => apiClient.get("/document-types", { params: { organizationId } }));
 }
 
+export async function searchDocumentTypes(organizationId: string, name: string): Promise<DocumentType[]> {
+  return apiRequest<DocumentType[]>(() =>
+    apiClient.get("/document-types/search", { params: { organizationId, name } })
+  );
+}
+
 export async function createDocumentType(payload: CreateDocumentTypeDto): Promise<DocumentType> {
   return apiRequest<DocumentType>(() => apiClient.post("/document-types", payload));
 }

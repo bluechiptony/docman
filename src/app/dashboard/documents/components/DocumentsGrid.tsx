@@ -274,12 +274,18 @@ export function DocumentsGrid({
                           <div className="absolute -bottom-1 right-0">
                             <Badge
                               variant="outline"
-                              className="text-[10px] px-1 py-0 bg-white border-amber-300 text-amber-700"
+                              className={`text-[10px] px-1 py-0 ${
+                                reqStatus[item.id].remainingCount === 0
+                                  ? "bg-green-50 border-green-300 text-green-700"
+                                  : "bg-white border-amber-300 text-amber-700"
+                              }`}
                               title={`Remaining: ${reqStatus[item.id].remainingCount} / ${
                                 reqStatus[item.id].totalRequired
                               }`}
                             >
-                              {reqStatus[item.id].remainingCount} left
+                              {reqStatus[item.id].remainingCount === 0
+                                ? "Complete"
+                                : `${reqStatus[item.id].remainingCount} left`}
                             </Badge>
                           </div>
                         )}
