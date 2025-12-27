@@ -137,7 +137,7 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
         try {
           const newUser = await addDocumentShare(documentId, {
             userId: user.id,
-            permission: permission as "view" | "edit",
+            permission: permission as "VIEW" | "EDIT",
           });
           successfulShares.push(newUser);
         } catch (e) {

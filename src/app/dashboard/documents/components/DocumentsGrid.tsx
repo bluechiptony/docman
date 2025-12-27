@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import {
   FileText,
   Folder,
+  User,
   FolderPlus,
   MoreVertical,
   Pencil,
@@ -15,7 +16,7 @@ import {
   File,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { DocumentItem } from "../hooks/useDocuments";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
@@ -25,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import ShareDialog from "./ShareDialog";
 import DocumentDrawer from "./DocumentDrawer";
 import DocumentViewerModal from "./DocumentViewerModal";
+// (merged into the import above)
+import { getFolderRequirementStatus, type FolderRequirementStatus } from "@/lib/folders.service";
 
 interface Props {
   items: DocumentItem[];
@@ -88,6 +91,34 @@ export function DocumentsGrid({
   const [newName, setNewName] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [copied, setCopied] = useState(false);
+
+  // Requirement status cache per folder
+  const [reqStatus, setReqStatus] = useState<Record<string, FolderRequirementStatus>>({});
+
+  useEffect(() => {
+    const applicantFolders = items.filter(
+      (i) => i.type === "folder" && i.folderType === "APPLICANT" && i.folderRequiredDocumentsId
+    );
+    const missing = applicantFolders.filter((f) => !reqStatus[f.id]);
+    if (missing.length === 0) return;
+
+    (async () => {
+      try {
+        const results = await Promise.all(
+          missing.map((f) => getFolderRequirementStatus(f.id).then((res) => ({ id: f.id, status: res })))
+        );
+        setReqStatus((prev) => {
+          const next = { ...prev };
+          for (const r of results) {
+            next[r.id] = r.status;
+          }
+          return next;
+        });
+      } catch (e) {
+        // silent fail; indicator will not render
+      }
+    })();
+  }, [items]);
 
   const handleOpenDocDetails = (docId: string) => {
     setSelectedDoc(docId);
@@ -230,9 +261,29 @@ export function DocumentsGrid({
                 >
                   <div className="flex flex-col items-center gap-3">
                     {item.type === "folder" ? (
-                      <Folder
-                        className={`h-10 w-10 ${hoveredFolder === item.id ? "text-amber-600" : "text-gray-700"}`}
-                      />
+                      <div className="relative">
+                        <Folder
+                          className={`h-10 w-10 ${hoveredFolder === item.id ? "text-amber-600" : "text-gray-700"}`}
+                        />
+                        {item.folderType === "APPLICANT" && (
+                          <span className="absolute -top-1 -right-1 bg-amber-100 border border-amber-300 rounded-full p-0.5">
+                            <User className="h-3 w-3 text-amber-700" />
+                          </span>
+                        )}
+                        {item.folderType === "APPLICANT" && reqStatus[item.id]?.applicable && (
+                          <div className="absolute -bottom-1 right-0">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1 py-0 bg-white border-amber-300 text-amber-700"
+                              title={`Remaining: ${reqStatus[item.id].remainingCount} / ${
+                                reqStatus[item.id].totalRequired
+                              }`}
+                            >
+                              {reqStatus[item.id].remainingCount} left
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       getFileIcon(item.name)
                     )}

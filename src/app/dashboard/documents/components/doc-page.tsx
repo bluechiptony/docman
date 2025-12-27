@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toaster, toast } from "sonner";
 import { DocumentsGrid } from "./DocumentsGrid";
+import FolderSidePanel from "./FolderSidePanel";
 import UploadModal from "./UploadModal";
 import CreateFolderModal from "./CreateFolderModal";
 import { FolderBreadcrumb } from "./FolderBreadcrumb";
@@ -16,7 +17,7 @@ export default function DocumentsPage() {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { path, visibleItems, createFolder, openFolder, goBackTo, moveItem, handleUpload, addDocument } =
+  const { path, visibleItems, documents, createFolder, openFolder, goBackTo, moveItem, handleUpload, addDocument } =
     useDocuments();
   const currentFolderId = path[path.length - 1]?.id ?? null;
   const parentFolderId = path.length > 0 ? path[path.length - 1].id : undefined;
@@ -66,23 +67,41 @@ export default function DocumentsPage() {
         />
       </div>
 
-      {/* Documents Grid */}
-      <div className="flex-1 overflow-y-auto">
-        <DocumentsGrid
-          items={filteredItems}
-          onFolderOpen={openFolder}
-          onMove={moveItem}
-          onDelete={handleDelete}
-          onRename={(id: string, newName: string) => {
-            console.log("Rename", id, newName);
-          }}
-          onShare={(id: string) => {
-            console.log("Share", id);
-            return "";
-          }}
-          onOpenCreateFolder={() => setIsCreateFolderOpen(true)}
-          onOpenUpload={() => setIsUploadOpen(true)}
-        />
+      {/* Main area with side panel */}
+      <div className="flex-1 overflow-hidden">
+        <div className="flex h-full">
+          <div className="flex-1 overflow-y-auto">
+            <DocumentsGrid
+              items={filteredItems}
+              onFolderOpen={openFolder}
+              onMove={moveItem}
+              onDelete={handleDelete}
+              onRename={(id: string, newName: string) => {
+                console.log("Rename", id, newName);
+              }}
+              onShare={(id: string) => {
+                console.log("Share", id);
+                return "";
+              }}
+              onOpenCreateFolder={() => setIsCreateFolderOpen(true)}
+              onOpenUpload={() => setIsUploadOpen(true)}
+            />
+          </div>
+          {/* Side panel shows when inside a folder (not root) */}
+          {currentFolderId &&
+            (() => {
+              const folderItem = documents.find((d) => d.id === currentFolderId && d.type === "folder");
+              return (
+                <FolderSidePanel
+                  folderId={currentFolderId ?? undefined}
+                  folderName={path[path.length - 1]?.name}
+                  folderType={folderItem?.folderType}
+                  folderRequiredDocumentsId={folderItem?.folderRequiredDocumentsId}
+                  documents={visibleItems.filter((i) => i.type === "file")}
+                />
+              );
+            })()}
+        </div>
       </div>
 
       {/* Upload Modal */}
@@ -100,8 +119,8 @@ export default function DocumentsPage() {
         isOpen={isCreateFolderOpen}
         parentFolderId={parentFolderId ? parentFolderId : undefined}
         onClose={() => setIsCreateFolderOpen(false)}
-        onCreateFolder={(folderName, parentFolderId) => {
-          createFolder(folderName, parentFolderId);
+        onCreateFolder={(folderName, parentFolderId, type, folderRequiredDocumentsId) => {
+          createFolder(folderName, parentFolderId, type, folderRequiredDocumentsId);
         }}
       />
 

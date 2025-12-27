@@ -10,6 +10,9 @@ export interface DocumentItem {
   name: string;
   type: "folder" | "file";
   parentId: string | null;
+  // When item is a folder, this indicates DB-level folder type (e.g., APPLICANT)
+  folderType?: string;
+  folderRequiredDocumentsId?: string;
   size?: number;
   mimeType?: string;
   createdAt?: string;
@@ -106,6 +109,9 @@ export function useDocuments() {
           type: "folder",
           parentId: targetFolderId,
           createdAt: response.data.createdAt || new Date().toISOString(),
+          // Ensure newly created folders carry backend metadata for requirements UI
+          folderType: response.data.type,
+          folderRequiredDocumentsId: response.data.folderRequiredDocumentsId,
         };
 
         setDocuments((prev) => [...prev, newFolder]);
