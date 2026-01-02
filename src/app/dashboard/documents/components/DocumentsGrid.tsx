@@ -294,6 +294,11 @@ export function DocumentsGrid({
                       getFileIcon(item.name)
                     )}
                     <p className="text-sm text-center truncate w-full">{item.name}</p>
+                    {item.type === "file" && item.documentType && (
+                      <p className="text-xs text-center text-muted-foreground truncate w-full">
+                        {item.documentType.name}
+                      </p>
+                    )}
                   </div>
 
                   {(item.type === "folder" || isApproved) && (

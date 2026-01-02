@@ -18,6 +18,7 @@ export interface DocumentItem {
   createdAt?: string;
   url?: string;
   reviews?: Array<{ id: string; status: string }>;
+  documentType?: { id: string; name: string };
 }
 
 interface FolderPath {
