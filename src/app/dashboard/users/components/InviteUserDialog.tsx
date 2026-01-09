@@ -16,16 +16,16 @@ interface InviteUserDialogProps {
 export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogProps) {
   const { inviteUser } = useUsers();
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("viewer");
+  const [role, setRole] = useState("VIEWER");
   const [loading, setLoading] = useState(false);
 
   const handleInvite = async () => {
     if (!email) return;
     setLoading(true);
-    await inviteUser(email, role);
+    await inviteUser(email, role as "ADMINISTRATOR" | "EDITOR" | "VIEWER");
     setLoading(false);
     setEmail("");
-    setRole("viewer");
+    setRole("VIEWER");
     onClose();
   };
 
@@ -53,9 +53,9 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
               onChange={(e) => setRole(e.target.value)}
               className="w-full border border-gray-300 rounded-md p-2 text-sm"
             >
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-              <option value="admin">Admin</option>
+              <option value="VIEWER">Viewer</option>
+              <option value="EDITOR">Editor</option>
+              <option value="ADMINISTRATOR">Admin</option>
             </select>
           </div>
         </div>
