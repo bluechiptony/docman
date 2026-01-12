@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RoleBadge } from "../../users/components/RoleBadge";
 import ShareDialog from "./ShareDialog";
+import ExshareDialog from "./ExshareDialog";
 import {
   getDocumentById,
   getDocumentPreviewUrl,
@@ -40,6 +41,7 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
   const [loading, setLoading] = useState<boolean>(false);
 
   const [showShareModal, setShowShareModal] = useState(false);
+  const [exshareOpen, setExshareOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -203,6 +205,11 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
                   Preview expires: {new Date(previewExpiresAt).toLocaleString()}
                 </span>
               ) : null}
+              <div className="mt-2">
+                <Button size="sm" variant="default" onClick={() => setExshareOpen(true)} disabled={!doc?.id}>
+                  Share via Email (Exshare)
+                </Button>
+              </div>
             </div>
           </DrawerHeader>
 
@@ -323,6 +330,9 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
 
       {/* Share Dialog modal */}
       {doc && <ShareDialog open={showShareModal} onClose={() => setShowShareModal(false)} documentId={doc.id} />}
+
+      {/* Exshare Dialog */}
+      <ExshareDialog open={exshareOpen} onClose={() => setExshareOpen(false)} documentId={doc?.id ?? null} />
     </>
   );
 }

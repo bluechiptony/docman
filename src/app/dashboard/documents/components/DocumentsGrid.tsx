@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ShareDialog from "./ShareDialog";
+import ExshareDialog from "./ExshareDialog";
 import DocumentDrawer from "./DocumentDrawer";
 import DocumentViewerModal from "./DocumentViewerModal";
 // (merged into the import above)
@@ -85,6 +86,8 @@ export function DocumentsGrid({
 
   const [shareOpen, setShareOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
+  const [exshareOpen, setExshareOpen] = useState(false);
+  const [exshareDocId, setExshareDocId] = useState<string | null>(null);
 
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -396,6 +399,19 @@ export function DocumentsGrid({
 
                     <ContextMenuItem
                       onClick={() => {
+                        if (item.type === "file") {
+                          setExshareDocId(item.id);
+                          setExshareOpen(true);
+                        } else {
+                          toast.info("Exshare is available for documents only");
+                        }
+                      }}
+                    >
+                      <Share2 className="w-4 h-4 mr-2" /> Share via Email (Exshare)
+                    </ContextMenuItem>
+
+                    <ContextMenuItem
+                      onClick={() => {
                         onDelete(item.id);
                         toast.success(`${item.name} deleted`);
                       }}
@@ -438,6 +454,8 @@ export function DocumentsGrid({
 
       {/* Share Dialog */}
       <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} documentId={selectedDocument ?? ""} />
+
+      <ExshareDialog open={exshareOpen} onClose={() => setExshareOpen(false)} documentId={exshareDocId} />
 
       <DocumentDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} documentId={selectedDoc} />
 
