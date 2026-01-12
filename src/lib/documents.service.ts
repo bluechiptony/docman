@@ -184,3 +184,19 @@ export async function updateDocumentPublicShare(
 ): Promise<PublicShareInfo> {
   return apiRequest<PublicShareInfo>(() => apiClient.patch(`/documents/${documentId}/public`, payload));
 }
+/**
+ * Check if the current user has permission to access a document
+ * @param userId - Current user ID
+ * @param userRole - Current user's role (e.g., "ADMINISTRATOR", "EDITOR", "VIEWER")
+ * @param permissions - Document permissions list
+ * @returns true if user is admin or has explicit permission
+ */
+export function hasDocumentPermission(userId: string, userRole: string, permissions: DocumentPermission[]): boolean {
+  // Admins have access to all documents
+  if (userRole === "ADMINISTRATOR") {
+    return true;
+  }
+
+  // Check if user is in the permissions list
+  return permissions.some((p) => p.user.id === userId);
+}

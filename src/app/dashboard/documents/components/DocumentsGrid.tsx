@@ -28,6 +28,8 @@ import DocumentDrawer from "./DocumentDrawer";
 import DocumentViewerModal from "./DocumentViewerModal";
 // (merged into the import above)
 import { getFolderRequirementStatus, type FolderRequirementStatus } from "@/lib/folders.service";
+import { getDocumentPermissions, hasDocumentPermission } from "@/lib/documents.service";
+import { useAuth } from "@/providers/auth.provider";
 
 interface Props {
   items: DocumentItem[];
@@ -71,6 +73,7 @@ export function DocumentsGrid({
   onOpenCreateFolder,
   onOpenUpload,
 }: Props) {
+  const { user } = useAuth();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null);
 
@@ -94,6 +97,9 @@ export function DocumentsGrid({
 
   // Requirement status cache per folder
   const [reqStatus, setReqStatus] = useState<Record<string, FolderRequirementStatus>>({});
+
+  // Permission cache for documents
+  const [docPermissions, setDocPermissions] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const applicantFolders = items.filter(
@@ -123,6 +129,37 @@ export function DocumentsGrid({
   const handleOpenDocDetails = (docId: string) => {
     setSelectedDoc(docId);
     setDrawerOpen(true);
+  };
+
+  const handleOpenDocDetailsWithPermissionCheck = async (docId: string) => {
+    // Check if permission is already cached
+    if (docPermissions[docId] !== undefined) {
+      if (!docPermissions[docId]) {
+        toast.error("You don't have permission to access this document");
+        return;
+      }
+      handleOpenDocDetails(docId);
+      return;
+    }
+
+    // Fetch permissions if not cached
+    try {
+      const permissions = await getDocumentPermissions(docId);
+      const hasPermission = hasDocumentPermission(user?.id || "", user?.authentication?.role || "VIEWER", permissions);
+
+      // Cache the permission result
+      setDocPermissions((prev) => ({ ...prev, [docId]: hasPermission }));
+
+      if (!hasPermission) {
+        toast.error("You don't have permission to access this document");
+        return;
+      }
+
+      handleOpenDocDetails(docId);
+    } catch (error) {
+      console.error("Failed to check document permissions:", error);
+      toast.error("Failed to verify permissions");
+    }
   };
 
   const handleOpenViewer = (docId: string) => {
@@ -251,11 +288,11 @@ export function DocumentsGrid({
                   onDoubleClick={() =>
                     item.type === "folder"
                       ? onFolderOpen(item.id, item.name)
-                      : isApproved && handleOpenDocDetails(item.id)
+                      : isApproved && handleOpenDocDetailsWithPermissionCheck(item.id)
                   }
                   onClick={() => {
                     if (item.type !== "folder" && isApproved) {
-                      handleOpenDocDetails(item.id);
+                      handleOpenDocDetailsWithPermissionCheck(item.id);
                     }
                   }}
                 >
@@ -330,7 +367,7 @@ export function DocumentsGrid({
                     <ContextMenuItem
                       onClick={() => {
                         if (item.type === "file") {
-                          handleOpenViewer(item.id);
+                          handleOpenDocDetailsWithPermissionCheck(item.id);
                         } else {
                           onFolderOpen(item.id, item.name);
                         }
