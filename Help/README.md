@@ -44,6 +44,7 @@ For each new feature or major functionality:
 
 - ✅ `documents/` - Documents page overview and folder creation
 - ✅ `settings/document-types/` - Document Types management
+- ✅ `documents/exshare/` - External Share (email + OTP) usage guide
 
 ## Upcoming Manuals
 

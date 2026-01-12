@@ -5,6 +5,9 @@ export type ExshareInfo = {
   documentName: string;
   sharedBy: string;
   permission: "VIEW" | "EDIT";
+  expiresAt: string;
+  isExpired: boolean;
+  hasRefreshRequest: boolean;
 };
 
 export type ExshareVerifyResult = {
@@ -42,11 +45,19 @@ export async function createExshareInvites(
   emails: string[],
   permission: "VIEW" | "EDIT" = "VIEW"
 ): Promise<{ success: boolean; message: string; shares: { email: string; token: string }[] }> {
-  // TODO(mail): Hook up Mailgun sending on backend when creating invites
   return apiRequest(() =>
     apiClient.post(`/documents/${documentId}/exshare`, {
       emails,
       permission,
     })
+  );
+}
+
+export async function requestExshareRefresh(
+  token: string,
+  note?: string
+): Promise<{ success: boolean; message: string }> {
+  return apiRequest<{ success: boolean; message: string }>(() =>
+    apiClient.post(`/documents/exshare/${token}/request-refresh`, { note })
   );
 }

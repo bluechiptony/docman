@@ -9,14 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/providers/auth.provider";
+import { InviteUserModal } from "@/app/dashboard/users/components/InviteUserModal";
+import CreateDocumentTypeModal from "@/app/dashboard/settings/document-types/components/CreateDocumentTypeModal";
 
 export function QuickActions() {
   const [openModal, setOpenModal] = useState<string | null>(null);
+  const [openTypeModal, setOpenTypeModal] = useState<boolean>(false);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const dropRef = useRef<HTMLDivElement | null>(null);
+  const { user } = useAuth();
+  const isAdmin = user?.authentication?.role === "ADMINISTRATOR";
 
   const actions = [
     { id: "upload", name: "Upload Document", icon: Upload, color: "bg-blue-100 text-blue-700" },
@@ -26,9 +32,17 @@ export function QuickActions() {
     { id: "newType", name: "Add New Type", icon: PlusCircle, color: "bg-pink-100 text-pink-700" },
   ];
 
-  const open = (id: string) => setOpenModal(id);
+  const open = (id: string) => {
+    if ((id === "invite" || id === "newType") && !isAdmin) return;
+    if (id === "newType") {
+      setOpenTypeModal(true);
+      return;
+    }
+    setOpenModal(id);
+  };
   const close = () => {
     setOpenModal(null);
+    setOpenTypeModal(false);
     setFiles([]);
     setUploadProgress({});
     setUploadError(null);
@@ -92,21 +106,23 @@ export function QuickActions() {
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <motion.button
-              key={action.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => open(action.id)}
-              className={`flex flex-col items-center justify-center p-4 rounded-xl shadow-sm hover:shadow-md transition-all ${action.color}`}
-            >
-              <Icon size={24} />
-              <span className="mt-2 text-sm font-medium text-center">{action.name}</span>
-            </motion.button>
-          );
-        })}
+        {actions
+          .filter((action) => (action.id === "invite" || action.id === "newType" ? isAdmin : true))
+          .map((action) => {
+            const Icon = action.icon;
+            return (
+              <motion.button
+                key={action.id}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => open(action.id)}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl shadow-sm hover:shadow-md transition-all ${action.color}`}
+              >
+                <Icon size={24} />
+                <span className="mt-2 text-sm font-medium text-center">{action.name}</span>
+              </motion.button>
+            );
+          })}
       </div>
 
       {/* Upload Document Modal */}
@@ -193,30 +209,15 @@ export function QuickActions() {
         </DialogContent>
       </Dialog>
 
-      {/* Invite User Modal */}
-      <Dialog open={openModal === "invite"} onOpenChange={close}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invite New User</DialogTitle>
-          </DialogHeader>
-          <form className="space-y-4">
-            <div>
-              <Label htmlFor="user-email">Email Address</Label>
-              <Input id="user-email" type="email" placeholder="e.g., john@company.com" />
-            </div>
-            <div>
-              <Label htmlFor="role">Role</Label>
-              <Input id="role" placeholder="e.g., Editor" />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={close}>
-                Cancel
-              </Button>
-              <Button type="submit">Send Invite</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Invite User Modal (admin only) */}
+      <InviteUserModal open={openModal === "invite" && isAdmin} onClose={close} onInviteSuccess={close} />
+
+      {/* Create Document Type Modal (admin only) */}
+      <CreateDocumentTypeModal
+        isOpen={openTypeModal && isAdmin}
+        onClose={() => setOpenTypeModal(false)}
+        onCreated={() => setOpenTypeModal(false)}
+      />
     </>
   );
 }
