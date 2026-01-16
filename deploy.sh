@@ -7,15 +7,15 @@
 set -e
 
 ENVIRONMENT=${1:-dev}
-DOCKER_USERNAME=${DOCKER_USERNAME:-"your-dockerhub-username"}
-IMAGE_NAME="docman-web"
-CONTAINER_NAME="docman-web-${ENVIRONMENT}"
+DOCKER_USERNAME=${DOCKER_USERNAME:-"bluechiptony"}
+IMAGE_NAME="docman-web-app"
+CONTAINER_NAME="docman-web-app-${ENVIRONMENT}"
 
 echo "🚀 Starting deployment for environment: $ENVIRONMENT"
 
 # Pull the latest image
 echo "📦 Pulling latest Docker image..."
-docker pull ${DOCKER_USERNAME}/${IMAGE_NAME}:${ENVIRONMENT}-latest
+docker pull ${DOCKER_USERNAME}/${IMAGE_NAME}:latest
 
 # Stop and remove existing container
 echo "🛑 Stopping existing container..."
@@ -28,9 +28,9 @@ docker run -d \
   --name ${CONTAINER_NAME} \
   --restart unless-stopped \
   -p 3000:3000 \
-  --env-file /opt/docman/.env.${ENVIRONMENT} \
-  --network docman-network \
-  ${DOCKER_USERNAME}/${IMAGE_NAME}:${ENVIRONMENT}-latest
+#   --env-file /opt/docman/.env.${ENVIRONMENT} \
+#   --network docman-network \
+  ${DOCKER_USERNAME}/${IMAGE_NAME}:latest
 
 # Clean up old images
 echo "🧹 Cleaning up old images..."
