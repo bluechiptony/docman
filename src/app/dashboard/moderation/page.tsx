@@ -72,8 +72,12 @@ export default function ModerationDashboard() {
 
   useEffect(() => {
     fetchStats();
-    fetchReviews("PENDING");
   }, []);
+
+  useEffect(() => {
+    fetchReviews(activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   useEffect(() => {
     if (selectedReview) {
