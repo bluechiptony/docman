@@ -31,7 +31,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/docman-web
+          images: ${{ secrets.DOCKER_USERNAME }}/docman-web-app
           tags: |
             type=ref,event=branch
             type=sha,prefix=dev-
@@ -56,5 +56,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            cd /opt/docman
-            ./deploy.sh dev
+            cd /srv/docman
+            ./deploy-docman.sh dev
