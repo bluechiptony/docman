@@ -56,5 +56,22 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
+            set -e
             cd /srv/docman
-            ./deploy-docman.sh dev
+
+            # Optional: Log in to registry on remote to allow pulling private images
+            if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
+              docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}" || true
+            fi
+
+            # Ensure the latest image tag is pulled before recreating containers
+            docker compose pull
+            docker compose up -d --force-recreate --remove-orphans
+
+            # Verify the currently running container image and digest
+            echo "\nCurrent compose images:" 
+            docker compose images || true
+            echo "\nRunning containers:" 
+            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+            echo "\nDocman container image details:" 
+            docker inspect docman --format 'Image ID: {{.Image}}' || true
