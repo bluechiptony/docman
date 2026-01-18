@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 const SetPasswordSchema = Yup.object().shape({
   password: Yup.string().min(8, "Password must be at least 8 characters").required("Password is required"),
@@ -23,19 +23,22 @@ export default function SetPasswordComponent() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const searchParams = useSearchParams();
   const router = useRouter();
   const initialValues = { password: "", confirmPassword: "" };
 
   useEffect(() => {
-    const tokenParam = searchParams.get("token");
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get("token");
+
     if (!tokenParam) {
       toast.error("Invalid reset link. Please request a new password reset.");
       router.push("/forgot-password");
     } else {
       setToken(tokenParam);
     }
-  }, [searchParams, router]);
+  }, [router]);
 
   const handleFormSubmit = async (values: { password: string; confirmPassword: string }) => {
     if (!token) {
@@ -167,9 +170,10 @@ export default function SetPasswordComponent() {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  className="w-full mt-6 bg-gray-900 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
+                  className="w-full mt-6 bg-gray-900 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading || !token}
                 >
-                  Set Password
+                  {loading ? "Resetting Password..." : "Set Password"}
                 </Button>
 
                 {/* Back to Login */}
