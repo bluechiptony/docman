@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LayoutDashboard, FileText, Users, Settings, Menu, X, ShieldCheck, Activity, Share } from "lucide-react";
+import {
+  LayoutDashboard,
+  FileText,
+  Users,
+  Settings,
+  Menu,
+  X,
+  ShieldCheck,
+  Activity,
+  Share,
+  HelpCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +28,7 @@ const navItems = [
   { name: "Shares", icon: Share, href: "/dashboard/external-shares" },
   { name: "Moderation", icon: ShieldCheck, href: "/dashboard/moderation", roles: ["ADMINISTRATOR"] },
   { name: "Settings", icon: Settings, href: "/dashboard/settings" },
+  { name: "Help", icon: HelpCircle, href: "/help" },
 ];
 
 interface SidebarProps {
@@ -63,7 +75,7 @@ export default function Sidebar({
             const linkClasses = cn(
               "flex items-center gap-3 p-3 rounded-md transition",
               isActive ? "bg-gray-800 text-amber-400" : "hover:bg-gray-800 text-gray-300",
-              collapsed && !isMobile && "justify-center"
+              collapsed && !isMobile && "justify-center",
             );
 
             const linkElement = (

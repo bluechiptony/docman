@@ -1,7 +1,8 @@
 "use client";
 
-import { Menu, LogOut, User, Building2 } from "lucide-react";
+import { Menu, LogOut, User, Building2, HelpCircle } from "lucide-react";
 import { useAuth } from "@/providers/auth.provider";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +76,13 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/help" className="flex items-center cursor-pointer">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                <span>Help & Documentation</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="text-red-600 focus:text-red-600">
