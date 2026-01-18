@@ -29,17 +29,22 @@ export type ActivityLogResponse = {
 };
 
 /**
- * Get activity logs for an organization
+ * Get activity logs for an organization with optional filters
  */
 export async function getOrganizationActivityLogs(
   organizationId: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
+  filters?: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+  },
 ): Promise<ActivityLogResponse> {
   return apiRequest<ActivityLogResponse>(() =>
     apiClient.get(`/activity-log/organization/${organizationId}`, {
-      params: { page, limit },
-    })
+      params: { page, limit, ...filters },
+    }),
   );
 }
 
@@ -49,12 +54,12 @@ export async function getOrganizationActivityLogs(
 export async function getDocumentActivityLogs(
   documentId: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<ActivityLogResponse> {
   return apiRequest<ActivityLogResponse>(() =>
     apiClient.get(`/activity-log/document/${documentId}`, {
       params: { page, limit },
-    })
+    }),
   );
 }
 
@@ -64,12 +69,12 @@ export async function getDocumentActivityLogs(
 export async function getFolderActivityLogs(
   folderId: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<ActivityLogResponse> {
   return apiRequest<ActivityLogResponse>(() =>
     apiClient.get(`/activity-log/folder/${folderId}`, {
       params: { page, limit },
-    })
+    }),
   );
 }
 
@@ -79,11 +84,11 @@ export async function getFolderActivityLogs(
 export async function getUserActivityLogs(
   userId: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<ActivityLogResponse> {
   return apiRequest<ActivityLogResponse>(() =>
     apiClient.get(`/activity-log/user/${userId}`, {
       params: { page, limit },
-    })
+    }),
   );
 }
