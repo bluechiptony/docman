@@ -22,7 +22,7 @@ export function QuickActions() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const dropRef = useRef<HTMLDivElement | null>(null);
   const { user } = useAuth();
-  const isAdmin = user?.authentication?.role === "ADMINISTRATOR";
+  const isAdmin = user?.authentication?.role === "ADMINISTRATOR" || user?.authentication?.role === "SUPER_ADMIN";
 
   const actions = [
     { id: "upload", name: "Upload Document", icon: Upload, color: "bg-blue-100 text-blue-700" },

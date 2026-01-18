@@ -2,23 +2,37 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Mail } from "lucide-react";
+import { Users, Mail, Loader } from "lucide-react";
 import UserTable from "./components/UserTable";
 import { InvitesTabContent } from "./components/InvitesTabContent";
 import { useUsers } from "./hooks/useUsers";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/providers/auth.provider";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
 
 export default function UsersPage() {
   const { users, loading, updateRole, deactivateUser, currentUser, canManageRoles } = useUsers();
   const { user } = useAuth();
+  const { hasAccess, loading: checkingAccess } = useAdminAccess();
   const [search, setSearch] = useState("");
+
+  if (checkingAccess) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader className="w-8 h-8 animate-spin text-[#0A3A5C]" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return null;
+  }
 
   const filtered = users.filter(
     (u) =>
       u.firstName.toLowerCase().includes(search.toLowerCase()) ||
       u.lastName.toLowerCase().includes(search.toLowerCase()) ||
-      u.emailAddress.toLowerCase().includes(search.toLowerCase())
+      u.emailAddress.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (

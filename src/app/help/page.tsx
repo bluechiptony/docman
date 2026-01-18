@@ -5,7 +5,7 @@ import { BookOpen, Users, Settings, FileText, Home } from "lucide-react";
 
 export default function HelpPage() {
   const { user } = useAuth();
-  const isAdmin = user?.authentication?.role === "ADMINISTRATOR";
+  const isAdmin = user?.authentication?.role === "ADMINISTRATOR" || user?.authentication?.role === "SUPER_ADMIN";
 
   return (
     <div className="min-h-screen bg-gray-50">

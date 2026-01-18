@@ -23,11 +23,11 @@ import { useAuth } from "@/providers/auth.provider";
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { name: "Documents", icon: FileText, href: "/dashboard/documents" },
-  { name: "Users", icon: Users, href: "/dashboard/users" },
-  { name: "Activity", icon: Activity, href: "/dashboard/activity" },
+  { name: "Users", icon: Users, href: "/dashboard/users", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
+  { name: "Activity", icon: Activity, href: "/dashboard/activity", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
   { name: "Shares", icon: Share, href: "/dashboard/external-shares" },
   { name: "Moderation", icon: ShieldCheck, href: "/dashboard/moderation", roles: ["ADMINISTRATOR"] },
-  { name: "Settings", icon: Settings, href: "/dashboard/settings" },
+  { name: "Settings", icon: Settings, href: "/dashboard/settings", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
   { name: "Help", icon: HelpCircle, href: "/help" },
 ];
 
