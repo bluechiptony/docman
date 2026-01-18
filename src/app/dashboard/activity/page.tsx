@@ -9,10 +9,12 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Activity, X } from "lucide-react";
+import { Activity, X, Loader } from "lucide-react";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
 
 export default function ActivityPage() {
   const { user, selectOrganization } = useAuth();
+  const { hasAccess, loading: checkingAccess } = useAdminAccess();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -21,6 +23,18 @@ export default function ActivityPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const limit = 20;
+
+  if (checkingAccess) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader className="w-8 h-8 animate-spin text-[#0A3A5C]" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return null;
+  }
 
   // Set default organization on mount if not already selected
   useEffect(() => {
