@@ -7,7 +7,9 @@ import { getOrganizationActivityLogs, type ActivityLog } from "@/lib/activity-lo
 import { useAuth } from "@/providers/auth.provider";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Activity, X } from "lucide-react";
 
 export default function ActivityPage() {
   const { user, selectOrganization } = useAuth();
@@ -15,6 +17,9 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [searchText, setSearchText] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const limit = 20;
 
   // Set default organization on mount if not already selected
@@ -24,7 +29,7 @@ export default function ActivityPage() {
     }
   }, [user, selectOrganization]);
 
-  // Fetch logs when organization or page changes
+  // Fetch logs when organization, page, or filters change
   useEffect(() => {
     if (!user?.selectedOrganization?.id) return;
 
@@ -33,7 +38,12 @@ export default function ActivityPage() {
       try {
         const orgId = user?.selectedOrganization?.id;
         if (!orgId) return;
-        const response = await getOrganizationActivityLogs(orgId, page, limit);
+
+        const response = await getOrganizationActivityLogs(orgId, page, limit, {
+          search: searchText || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        });
 
         if (page === 1) {
           setLogs(response?.data || []);
@@ -53,7 +63,7 @@ export default function ActivityPage() {
     };
 
     fetchLogs();
-  }, [user?.selectedOrganization?.id, page]);
+  }, [user?.selectedOrganization?.id, page, searchText, startDate, endDate]);
 
   const handleLoadMore = () => {
     setPage((prev) => prev + 1);
@@ -65,6 +75,15 @@ export default function ActivityPage() {
     setLogs([]);
   };
 
+  const handleClearFilters = () => {
+    setSearchText("");
+    setStartDate("");
+    setEndDate("");
+    setPage(1);
+    setLogs([]);
+  };
+
+  const hasActiveFilters = searchText || startDate || endDate;
   const hasMore = (logs?.length || 0) < total;
 
   if (!user) {
@@ -105,7 +124,89 @@ export default function ActivityPage() {
             {total > 0 ? `Showing ${logs?.length || 0} of ${total} activities` : "No activities to show"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <div className="flex items-end gap-4 flex-wrap">
+              {/* Text Search */}
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-sm font-medium text-gray-700 block mb-2">Search by Text</label>
+                <Input
+                  placeholder="Search by user, action, or document..."
+                  value={searchText}
+                  onChange={(e) => {
+                    setSearchText(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-9"
+                />
+              </div>
+
+              {/* Start Date */}
+              <div className="flex-1 min-w-[150px]">
+                <label className="text-sm font-medium text-gray-700 block mb-2">From Date</label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-9"
+                />
+              </div>
+
+              {/* End Date */}
+              <div className="flex-1 min-w-[150px]">
+                <label className="text-sm font-medium text-gray-700 block mb-2">To Date</label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-9"
+                />
+              </div>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-9 flex items-center gap-2"
+                >
+                  <X size={16} />
+                  Clear
+                </Button>
+              )}
+            </div>
+
+            {/* Active Filters Display */}
+            {hasActiveFilters && (
+              <div className="text-sm text-gray-600">
+                {searchText && (
+                  <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">
+                    Search: {searchText}
+                  </span>
+                )}
+                {startDate && (
+                  <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded mr-2">
+                    From: {startDate}
+                  </span>
+                )}
+                {endDate && (
+                  <span className="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded mr-2">
+                    To: {endDate}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Activity List */}
           <ActivityLogList
             logs={logs || []}
             loading={loading}
