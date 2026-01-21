@@ -102,6 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!decodedUser) {
         throw new Error("Failed to decode user from token");
       }
+
+      // Set selectedOrganization
+      if (decodedUser.organizations && decodedUser.organizations.length > 0) {
+        decodedUser.selectedOrganization = decodedUser.organizations[0];
+        localStorage.setItem("selectedOrganizationId", decodedUser.organizations[0].id);
+      }
+
       // Save token to localStorage
       localStorage.setItem("token", accessToken);
 

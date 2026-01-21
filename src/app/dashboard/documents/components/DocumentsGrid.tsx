@@ -106,7 +106,7 @@ export function DocumentsGrid({
 
   useEffect(() => {
     const applicantFolders = items.filter(
-      (i) => i.type === "folder" && i.folderType === "APPLICANT" && i.folderRequiredDocumentsId
+      (i) => i.type === "folder" && i.folderType === "APPLICANT" && i.folderRequiredDocumentsId,
     );
     const missing = applicantFolders.filter((f) => !reqStatus[f.id]);
     if (missing.length === 0) return;
@@ -114,7 +114,7 @@ export function DocumentsGrid({
     (async () => {
       try {
         const results = await Promise.all(
-          missing.map((f) => getFolderRequirementStatus(f.id).then((res) => ({ id: f.id, status: res })))
+          missing.map((f) => getFolderRequirementStatus(f.id).then((res) => ({ id: f.id, status: res }))),
         );
         setReqStatus((prev) => {
           const next = { ...prev };
@@ -240,7 +240,7 @@ export function DocumentsGrid({
     return (
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className="min-h-2/3 flex flex-col items-center justify-center h-64 text-muted-foreground border border-dashed rounded-xl bg-amber-200">
+          <div className="min-h-2/3 flex flex-col items-center justify-center h-64 text-muted-foreground border border-dashed rounded-xl bg-blue-100">
             <Folder className="h-10 w-10 mb-2 opacity-60" />
             <p>No documents here yet</p>
           </div>
@@ -270,7 +270,10 @@ export function DocumentsGrid({
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className="h-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 p-4 bg-amber-100">
+          <div
+            id="documents-grid"
+            className="min-h-[50vh] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 p-4 bg-blue-100"
+          >
             {items.map((item) => {
               const reviewStatus = item.type === "file" ? item.reviews?.[0]?.status : undefined;
               const isApproved = reviewStatus === "APPROVED";

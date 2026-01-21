@@ -1,12 +1,16 @@
 "use client";
+
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Formik, Form, Field } from "formik";
+import * as Yup from "yup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+import { apiClient } from "@/api/client";
 import Link from "next/link";
-import { Formik } from "formik";
-import * as Yup from "yup";
-import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 
 const ActivateAccountSchema = Yup.object().shape({
   password: Yup.string().min(8, "Password must be at least 8 characters").required("Password is required"),
@@ -15,133 +19,211 @@ const ActivateAccountSchema = Yup.object().shape({
     .required("Confirm password is required"),
 });
 
-export default function ActivateAccountComponent() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const initialValues = { password: "", confirmPassword: "" };
+function ActivateAccountContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
 
-  const handleFormSubmit = async (values: { password: string; confirmPassword: string }) => {
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [tokenValid, setTokenValid] = useState(false);
+
+  // Validate token on mount
+  useEffect(() => {
+    const validateToken = async () => {
+      if (!token) {
+        toast.error("Invalid activation link - no token provided");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await apiClient.get(`/auth/validate-activation?token=${token}`);
+        setEmail(response.data.email);
+        setFirstName(response.data.firstName);
+        setLastName(response.data.lastName);
+        setTokenValid(true);
+      } catch (error: unknown) {
+        const err = error as any;
+        const message = err.response?.data?.message || "Invalid or expired activation link";
+        toast.error(message);
+        setTokenValid(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateToken();
+  }, [token]);
+
+  const handleSubmit = async (values: { password: string; confirmPassword: string }) => {
     try {
-      // Call your activate account API here
-      console.log("Activating account with password");
-      // Redirect to dashboard on success
-      window.location.href = "/dashboard";
-    } catch (error) {
-      console.error("Error:", error);
+      await apiClient.post("/auth/activate-account", {
+        token,
+        password: values.password,
+      });
+
+      toast.success("Account activated successfully! Redirecting to login...");
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
+    } catch (error: unknown) {
+      const err = error as any;
+      const message = err.response?.data?.message || "Failed to activate account. Please try again.";
+      toast.error(message);
     }
   };
 
-  return (
-    <div className="flex h-screen w-full">
-      {/* Left Side - Background Image */}
-      <div
-        className="hidden lg:flex lg:w-1/2 bg-cover bg-center flex-col justify-between p-12"
-        style={{
-          backgroundImage: "url(/look/docman-login.webp)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-            <span className="text-white font-semibold">🏠</span>
-          </div>
-          <span className="text-white text-xl font-semibold">Realnest</span>
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-white text-5xl font-bold leading-tight">Find your sweet home</h2>
-          <p className="text-white text-lg opacity-90">
-            Schedule visit in just a few clicks
-            <br />
-            visits in just a few clicks
-          </p>
-          <div className="flex gap-2">
-            <div className="h-2 w-8 bg-white rounded-full"></div>
-            <div className="h-2 w-2 bg-white/50 rounded-full"></div>
-          </div>
-        </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Validating activation link...</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+    );
+  }
 
-      {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-white">
-        <div className="w-full max-w-md">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Activate Your Account</h1>
-            <p className="text-gray-600">Set a strong password to secure your account</p>
+  if (!tokenValid || !email) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Invalid Activation Link</CardTitle>
+            <CardDescription>The activation link is invalid or has expired</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-6">
+              If you believe this is an error, please contact your administrator.
+            </p>
+            <Link href="/">
+              <Button variant="outline" className="w-full">
+                <ArrowLeft className="mr-2 w-4 h-4" />
+                Back to Home
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Mail className="w-5 h-5 text-primary" />
+            <CardTitle>Activate Your Account</CardTitle>
           </div>
+          <CardDescription>Set your password to complete your account setup</CardDescription>
+        </CardHeader>
 
+        <CardContent>
           <Formik
-            initialValues={initialValues}
-            validationSchema={ActivateAccountSchema}
-            onSubmit={(values) => {
-              handleFormSubmit(values);
+            initialValues={{
+              password: "",
+              confirmPassword: "",
             }}
+            validationSchema={ActivateAccountSchema}
+            onSubmit={handleSubmit}
           >
-            {({ values, handleChange, handleBlur, handleSubmit, errors, touched }) => (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Password Field */}
+            {({ values, handleChange, handleBlur, errors, touched, isSubmitting }) => (
+              <Form className="space-y-4">
+                {/* Email Display */}
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</p>
+                  <p className="text-sm font-medium mt-1">{email}</p>
+                </div>
+
+                {/* Name Display */}
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</p>
+                  <p className="text-sm font-medium mt-1">
+                    {firstName} {lastName}
+                  </p>
+                </div>
+
+                {/* Password */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Password</Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="••••••••"
-                      type={showPassword ? "text" : "password"}
-                      value={values.password}
-                      onChange={handleChange("password")}
-                      onBlur={handleBlur("password")}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
+                  <label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </label>
+                  <Field
+                    as={Input}
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="Enter a strong password"
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    disabled={isSubmitting}
+                  />
                   {errors.password && touched.password && (
                     <span className="text-sm text-red-500">{errors.password}</span>
                   )}
+                  <p className="text-xs text-muted-foreground">At least 8 characters recommended</p>
                 </div>
 
-                {/* Confirm Password Field */}
+                {/* Confirm Password */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Confirm Password</Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="••••••••"
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={values.confirmPassword}
-                      onChange={handleChange("confirmPassword")}
-                      onBlur={handleBlur("confirmPassword")}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    >
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
+                  <label htmlFor="confirmPassword" className="text-sm font-medium">
+                    Confirm Password
+                  </label>
+                  <Field
+                    as={Input}
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Confirm your password"
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    disabled={isSubmitting}
+                  />
                   {errors.confirmPassword && touched.confirmPassword && (
                     <span className="text-sm text-red-500">{errors.confirmPassword}</span>
                   )}
                 </div>
 
                 {/* Submit Button */}
-                <Button
-                  type="submit"
-                  className="w-full mt-6 bg-gray-900 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
-                >
-                  Activate Account
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Activating Account..." : "Activate Account"}
                 </Button>
-              </form>
+              </Form>
             )}
           </Formik>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <Card className="w-full max-w-md">
+        <CardContent className="pt-6">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading...</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function ActivateAccountPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ActivateAccountContent />
+    </Suspense>
   );
 }

@@ -56,6 +56,25 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
+            # set -e
+            # cd /srv/docman
+
+            # # Optional: Log in to registry on remote to allow pulling private images
+            # if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            #   docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}" || true
+            # fi
+
+            # # Ensure the latest image tag is pulled before recreating containers
+            # docker compose pull
+            # docker compose up -d --force-recreate --remove-orphans
+
+            # # Verify the currently running container image and digest
+            # echo "\nCurrent compose images:" 
+            # docker compose images || true
+            # echo "\nRunning containers:" 
+            # docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+            # echo "\nDocman container image details:" 
+            # docker inspect docman --format 'Image ID: {{.Image}}' || true
             set -e
             cd /srv/docman
 
@@ -64,14 +83,12 @@ jobs:
               docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}" || true
             fi
 
-            # Ensure the latest image tag is pulled before recreating containers
-            docker compose pull
-            docker compose up -d --force-recreate --remove-orphans
+            # Pull latest images for API and seed job
+            docker compose pull docman-api docman-api-seed
 
-            # Verify the currently running container image and digest
-            echo "\nCurrent compose images:" 
-            docker compose images || true
-            echo "\nRunning containers:" 
-            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
-            echo "\nDocman container image details:" 
-            docker inspect docman --format 'Image ID: {{.Image}}' || true
+            # Run migrations + seeding + start services
+            ./deploy-with-seed.sh up
+
+            # Verify running containers
+            echo "\nRunning containers:"
+            docker compose ps

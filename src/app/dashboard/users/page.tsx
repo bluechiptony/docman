@@ -2,19 +2,24 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Mail, Loader } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Mail, Loader, Plus } from "lucide-react";
 import UserTable from "./components/UserTable";
 import { InvitesTabContent } from "./components/InvitesTabContent";
+import { CreateUserModal } from "./components/CreateUserModal";
 import { useUsers } from "./hooks/useUsers";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/providers/auth.provider";
+import { useAuth, useAuthUser } from "@/providers/auth.provider";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 
 export default function UsersPage() {
   const { users, loading, updateRole, deactivateUser, currentUser, canManageRoles } = useUsers();
   const { user } = useAuth();
+  const { user: authUser } = useAuthUser();
   const { hasAccess, loading: checkingAccess } = useAdminAccess();
   const [search, setSearch] = useState("");
+  const [createUserOpen, setCreateUserOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   if (checkingAccess) {
     return (
@@ -27,6 +32,8 @@ export default function UsersPage() {
   if (!hasAccess) {
     return null;
   }
+
+  const isSuperAdmin = authUser?.authentication?.role === "SUPER_ADMIN";
 
   const filtered = users.filter(
     (u) =>
@@ -63,9 +70,17 @@ export default function UsersPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
-            <p className="text-sm text-muted-foreground">
-              Logged in as <span className="font-medium">{user?.firstName}</span> ({user?.authentication?.role})
-            </p>
+            <div className="flex items-center gap-4">
+              {isSuperAdmin && (
+                <Button onClick={() => setCreateUserOpen(true)} className="gap-2" size="sm">
+                  <Plus className="w-4 h-4" />
+                  Create User
+                </Button>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Logged in as <span className="font-medium">{user?.firstName}</span> ({user?.authentication?.role})
+              </p>
+            </div>
           </div>
           <UserTable users={filtered} isLoading={loading} />
         </TabsContent>
@@ -75,6 +90,16 @@ export default function UsersPage() {
           <InvitesTabContent />
         </TabsContent>
       </Tabs>
+
+      {/* Create User Modal */}
+      <CreateUserModal
+        open={createUserOpen}
+        onClose={() => setCreateUserOpen(false)}
+        onUserCreated={() => {
+          // Refresh users list
+          setRefreshKey((prev) => prev + 1);
+        }}
+      />
     </div>
   );
 }

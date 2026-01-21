@@ -27,7 +27,7 @@ interface FolderPath {
 }
 
 export function useDocuments() {
-  const { user } = useAuthUser();
+  const { user, isLoading: authLoading } = useAuthUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,41 +40,63 @@ export function useDocuments() {
   const currentFolderId = path[path.length - 1]?.id ?? null;
 
   /** 📂 Fetch documents and folders */
-  const fetchDocuments = useCallback(async (parentId: string | null = null) => {
-    setLoading(true);
-    try {
-      // Currently backend only supports root-level fetching
-      // TODO: Implement /folders/:id/documents endpoint when documents module is created
-      let endpoint = `/folders/get/all/root`;
-
-      if (parentId) {
-        console.log(`parent id ${parentId}`);
-        endpoint = `/folders/get/all/parent?parent=${parentId}`;
+  const fetchDocuments = useCallback(
+    async (parentId: string | null = null) => {
+      // Don't fetch if auth is still loading
+      if (authLoading || !user) {
+        return;
       }
 
-      const response = await apiClient.get(endpoint);
-      // Filter items by parentId if provided
-      const items = response.data || [];
-      console.log(response.data);
+      setLoading(true);
+      try {
+        const isSuperAdmin = user?.authentication?.role === "SUPER_ADMIN";
+        const selectedOrgId = user?.selectedOrganization?.id;
 
-      const filtered = parentId
-        ? items.filter((item: DocumentItem) => item.parentId === parentId)
-        : items.filter((item: DocumentItem) => item.parentId === null);
+        let endpoint = `/folders/get/all/root`;
 
-      setDocuments(items); // Store all items for internal filtering
-    } catch (error: any) {
-      console.error("Failed to fetch documents:", error);
-      toast.error(error.response?.data?.message || "Failed to load documents");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        if (parentId) {
+          console.log(`parent id ${parentId}`);
+          endpoint = `/folders/get/all/parent?parent=${parentId}`;
+        } else if (!isSuperAdmin && selectedOrgId) {
+          // Non-super admins must provide their selected organization
+          endpoint = `/folders/get/all/root?orgId=${selectedOrgId}`;
+        }
+        // Super admins without parentId get all organizations' folders
+
+        const response = await apiClient.get(endpoint);
+        // Filter items by parentId if provided
+        const items = response.data || [];
+        console.log("ROLE");
+        console.log(selectedOrgId);
+        console.log(user?.authentication?.role);
+
+        console.log(response.data);
+
+        const filtered = parentId
+          ? items.filter((item: DocumentItem) => item.parentId === parentId)
+          : items.filter((item: DocumentItem) => item.parentId === null);
+
+        setDocuments(items); // Store all items for internal filtering
+      } catch (error: any) {
+        console.error("Failed to fetch documents:", error);
+        toast.error(error.response?.data?.message || "Failed to load documents");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authLoading, user?.authentication?.role, user?.selectedOrganization?.id, user?.id],
+  );
 
   // Fetch documents when path changes
   useEffect(() => {
+    // Skip fetch if auth is still loading
+    if (authLoading) {
+      return;
+    }
+
     const currentParentId = path[path.length - 1].id;
     fetchDocuments(currentParentId);
-  }, [path, fetchDocuments]);
+  }, [path[path.length - 1].id, authLoading, fetchDocuments]);
 
   /** 📁 Create Folder */
   const createFolder = useCallback(
@@ -82,14 +104,20 @@ export function useDocuments() {
       const targetFolderId = parentFolderId ?? currentFolderId;
 
       try {
-        if (!user?.organizations || !user?.id) {
+        if (!user?.id) {
           toast.error("User information not available. Please log in again.");
+          return;
+        }
+
+        const selectedOrgId = user?.selectedOrganization?.id;
+        if (!selectedOrgId) {
+          toast.error("Please select an organization first.");
           return;
         }
 
         const payload: any = {
           name,
-          organizationId: user.organizations[0]?.id,
+          organizationId: selectedOrgId,
           parentFolderId: targetFolderId,
           createdById: user.id,
         };
@@ -123,7 +151,7 @@ export function useDocuments() {
         throw error;
       }
     },
-    [currentFolderId, path, user]
+    [currentFolderId, path, user],
   );
 
   /** 📂 Open Folder */
@@ -134,7 +162,7 @@ export function useDocuments() {
 
       setPath((prev) => [...prev, { id: folder.id, name: folder.name }]);
     },
-    [documents]
+    [documents],
   );
 
   /** 🔙 Go back to breadcrumb folder */
@@ -164,7 +192,7 @@ export function useDocuments() {
     async (
       files: File[],
       onProgress?: (fileName: string, percent: number) => void,
-      extra?: { documentTypeId?: string; targetFolderId?: string | null }
+      extra?: { documentTypeId?: string; targetFolderId?: string | null },
     ) => {
       const targetFolderId = extra?.targetFolderId ?? currentFolderId;
 
@@ -174,56 +202,45 @@ export function useDocuments() {
       await Promise.all(
         files.map(async (file) => {
           const id = crypto.randomUUID();
-          const toastId = toast.loading(`Preparing ${file.name}...`);
 
-          try {
-            // 1️⃣ Get presigned URL with folder path and metadata
-            const presigned = await getPresignedUrl(file, currentOrganizationId, targetFolderId ?? undefined);
+          // 1️⃣ Get presigned URL with folder path and metadata
+          const presigned = await getPresignedUrl(file, currentOrganizationId, targetFolderId ?? undefined);
 
-            // 2️⃣ Upload to bucket
-            const cloudinaryResponse = await uploadToCloudinaryBucket(file, presigned, (percent) => {
-              onProgress?.(file.name, percent);
-              toast.message(`${file.name}: ${percent.toFixed(0)}%`, { id: toastId });
-            });
+          // 2️⃣ Upload to bucket
+          const cloudinaryResponse = await uploadToCloudinaryBucket(file, presigned, (percent) => {
+            onProgress?.(file.name, percent);
+          });
 
-            // 3️⃣ Complete upload with Cloudinary response
-            await completeUpload(cloudinaryResponse, {
-              file,
+          // 3️⃣ Complete upload with Cloudinary response
+          await completeUpload(cloudinaryResponse, {
+            file,
+            name: file.name,
+            folderId: targetFolderId,
+            type: "file",
+            size: file.size,
+            documentTypeId: extra?.documentTypeId,
+            organizationId: currentOrganizationId,
+            uploadedById: user?.id,
+            mimeType: file.type,
+          });
+
+          // ✅ Save the file under the current folder
+          setDocuments((prev) => [
+            ...prev,
+            {
+              id,
               name: file.name,
-              folderId: targetFolderId,
               type: "file",
+              parentId: targetFolderId,
               size: file.size,
-              documentTypeId: extra?.documentTypeId,
-              organizationId: currentOrganizationId,
-              uploadedById: user?.id,
               mimeType: file.type,
-            });
-
-            // ✅ Save the file under the current folder
-            setDocuments((prev) => [
-              ...prev,
-              {
-                id,
-                name: file.name,
-                type: "file",
-                parentId: targetFolderId,
-                size: file.size,
-                mimeType: file.type,
-                createdAt: new Date().toISOString(),
-              },
-            ]);
-            toast.dismiss(toastId);
-          } catch (error) {
-            console.error("Upload error:", error);
-            toast.error(`Upload failed`, { id: toastId });
-            toast.dismiss(toastId);
-          }
-
-          toast.success(`${file.name} uploaded successfully`);
-        })
+              createdAt: new Date().toISOString(),
+            },
+          ]);
+        }),
       );
     },
-    [currentFolderId, path, user]
+    [currentFolderId, path, user],
   );
 
   /** ⛔ Cancel Upload (mocked) */
@@ -296,7 +313,7 @@ export function useDocuments() {
   const uploadToCloudinaryBucket = async (
     file: File,
     presigned: { uploadUrl: string; fields?: Record<string, string>; publicUrl?: string },
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
   ) => {
     try {
       if (presigned.fields && Object.keys(presigned.fields).length > 0) {

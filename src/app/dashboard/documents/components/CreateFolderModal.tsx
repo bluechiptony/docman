@@ -65,7 +65,6 @@ export default function CreateFolderModal({ isOpen, onClose, onCreateFolder, par
     setIsLoading(true);
     try {
       onCreateFolder(folderName, parentFolderId, folderType, requiredDocsId || undefined);
-      toast.success(`Folder "${folderName}" created successfully`);
       resetForm();
       onClose();
     } catch (error) {
