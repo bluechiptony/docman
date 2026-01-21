@@ -1,6 +1,7 @@
 import axios from "axios";
 
 /** 🔹 Main API client — used for app backend requests */
+
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   timeout: 15000,
