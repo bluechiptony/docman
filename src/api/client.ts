@@ -2,7 +2,7 @@ import axios from "axios";
 
 /** 🔹 Main API client — used for app backend requests */
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://docman-api:4000",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://docmanws.temedia.ng",
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
