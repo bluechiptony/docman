@@ -2,7 +2,7 @@ import axios from "axios";
 
 /** 🔹 Main API client — used for app backend requests */
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3500",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://docman-api:4000",
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
@@ -32,7 +32,7 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 apiClient.interceptors.response.use(
@@ -49,7 +49,7 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 /* ────────────────────────────────
