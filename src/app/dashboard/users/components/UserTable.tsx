@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { User, useUsers } from "../hooks/useUsers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ interface UserTableProps {
 export default function UserTable({ users, isLoading }: UserTableProps) {
   const { updateRole } = useUsers();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const router = useRouter();
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-40 text-gray-500">Loading users...</div>;
@@ -62,6 +64,10 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
     }
   };
 
+  const handleRowClick = (userId: string) => {
+    router.push(`/dashboard/users/${userId}`);
+  };
+
   return (
     <div className="overflow-x-auto border rounded-lg">
       <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -76,7 +82,18 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {users.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+            <tr
+              key={user.id}
+              className="hover:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => handleRowClick(user.id)}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleRowClick(user.id);
+                }
+              }}
+            >
               <td className="px-4 py-3 font-medium text-gray-800">
                 {user.firstName || "—"} {user.lastName || "—"}
               </td>
@@ -90,26 +107,41 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
               <td className="px-4 py-3 text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
                       <MoreVertical className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem
                       disabled={selectedUser === user.id}
-                      onClick={() => handleRoleChange(user.id, "viewer")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRoleChange(user.id, "viewer");
+                      }}
                     >
                       👁 Viewer
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       disabled={selectedUser === user.id}
-                      onClick={() => handleRoleChange(user.id, "editor")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRoleChange(user.id, "editor");
+                      }}
                     >
                       ✏️ Editor
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       disabled={selectedUser === user.id}
-                      onClick={() => handleRoleChange(user.id, "admin")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRoleChange(user.id, "admin");
+                      }}
                     >
                       🛡 Admin
                     </DropdownMenuItem>
