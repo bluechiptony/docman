@@ -175,7 +175,11 @@ export default function ClientDetailPage() {
                   </tr>
                 ) : (
                   filteredFolders.map((folder) => (
-                    <tr key={folder.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={folder.id}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/dashboard/documents?folderId=${folder.id}`)}
+                    >
                       <td className="px-4 py-3 font-medium text-gray-800">{folder.name}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs font-mono">{folder.id}</td>
                     </tr>

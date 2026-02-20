@@ -171,6 +171,49 @@ export function useDocuments() {
     [documents],
   );
 
+  /** 🎯 Navigate directly to a folder by id */
+  const navigateToFolder = useCallback(
+    (folderId: string) => {
+      const target = documents.find((item) => item.id === folderId && item.type === "folder");
+      if (!target) return;
+
+      const pathById = new Map<string, FolderPath>();
+      const itemById = new Map<string, DocumentItem>();
+
+      documents.forEach((item) => {
+        if (item.type === "folder") {
+          itemById.set(item.id, item);
+          pathById.set(item.id, {
+            id: item.id,
+            name: item.name,
+            slug: item.slug ?? null,
+          });
+        }
+      });
+
+      const chain: FolderPath[] = [];
+      let currentId: string | null = target.id;
+
+      while (currentId) {
+        const pathNode = pathById.get(currentId);
+        if (!pathNode) break;
+
+        chain.unshift(pathNode);
+        const currentItem = itemById.get(currentId);
+        currentId = currentItem?.parentId ?? null;
+      }
+
+      const nextPath = [ROOT_PATH, ...chain];
+
+      setPath((prev) => {
+        const prevIds = prev.map((item) => item.id).join("|");
+        const nextIds = nextPath.map((item) => item.id).join("|");
+        return prevIds === nextIds ? prev : nextPath;
+      });
+    },
+    [documents],
+  );
+
   /** 🔙 Go back to breadcrumb folder */
   const goBackTo = useCallback((id: string | null) => {
     setPath((prev) => {
@@ -403,6 +446,7 @@ export function useDocuments() {
     currentFolderId,
     createFolder,
     openFolder,
+    navigateToFolder,
     goBackTo,
     moveItem,
     deleteItem,

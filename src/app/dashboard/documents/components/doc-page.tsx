@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Plus, FolderPlus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,14 +15,33 @@ import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { useDocuments } from "../hooks/useDocuments";
 
 export default function DocumentsPage() {
+  const router = useRouter();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const searchParams = useSearchParams();
+  const folderId = searchParams.get("folderId");
 
-  const { path, visibleItems, documents, createFolder, openFolder, goBackTo, moveItem, handleUpload, addDocument } =
-    useDocuments();
+  const {
+    path,
+    visibleItems,
+    documents,
+    createFolder,
+    openFolder,
+    navigateToFolder,
+    goBackTo,
+    moveItem,
+    handleUpload,
+    addDocument,
+  } = useDocuments();
   const currentFolderId = path[path.length - 1]?.id ?? null;
   const parentFolderId = path.length > 0 ? path[path.length - 1].id : undefined;
+
+  useEffect(() => {
+    if (!folderId) return;
+    navigateToFolder(folderId);
+    router.replace("/dashboard/documents");
+  }, [folderId, navigateToFolder, router]);
 
   // console.log(parentFolderId);
   // console.log(path);
