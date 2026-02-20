@@ -8,6 +8,7 @@ import { useAuth, useAuthUser } from "@/providers/auth.provider";
 export interface DocumentItem {
   id: string;
   name: string;
+  slug?: string;
   type: "folder" | "file";
   parentId: string | null;
   // When item is a folder, this indicates DB-level folder type (e.g., APPLICANT)
@@ -24,7 +25,10 @@ export interface DocumentItem {
 interface FolderPath {
   id: string | null;
   name: string;
+  slug: string | null;
 }
+
+const ROOT_PATH: FolderPath = { id: null, name: "Root", slug: null };
 
 export function useDocuments() {
   const { user, isLoading: authLoading } = useAuthUser();
@@ -32,12 +36,14 @@ export function useDocuments() {
   const [loading, setLoading] = useState(true);
 
   // 🧭 Root path starts from "Root"
-  const [path, setPath] = useState<FolderPath[]>([{ id: null, name: "Root" }]);
+  const [path, setPath] = useState<FolderPath[]>([ROOT_PATH]);
+
+  const currentPath = path[path.length - 1] ?? ROOT_PATH;
 
   // 🔍 Show only items in the current folder
-  const visibleItems = documents.filter((doc) => doc.parentId === path[path.length - 1].id);
+  const visibleItems = documents.filter((doc) => doc.parentId === currentPath.id);
 
-  const currentFolderId = path[path.length - 1]?.id ?? null;
+  const currentFolderId = currentPath.id;
 
   /** 📂 Fetch documents and folders */
   const fetchDocuments = useCallback(
@@ -94,9 +100,9 @@ export function useDocuments() {
       return;
     }
 
-    const currentParentId = path[path.length - 1].id;
+    const currentParentId = currentPath.id;
     fetchDocuments(currentParentId);
-  }, [path[path.length - 1].id, authLoading, fetchDocuments]);
+  }, [currentPath.id, authLoading, fetchDocuments]);
 
   /** 📁 Create Folder */
   const createFolder = useCallback(
@@ -160,16 +166,65 @@ export function useDocuments() {
       const folder = documents.find((f) => f.id === id && f.type === "folder");
       if (!folder) return;
 
-      setPath((prev) => [...prev, { id: folder.id, name: folder.name }]);
+      setPath((prev) => [...prev, { id: folder.id, name: folder.name, slug: folder.slug ?? null }]);
+    },
+    [documents],
+  );
+
+  /** 🎯 Navigate directly to a folder by id */
+  const navigateToFolder = useCallback(
+    (folderId: string) => {
+      const target = documents.find((item) => item.id === folderId && item.type === "folder");
+      if (!target) return;
+
+      const pathById = new Map<string, FolderPath>();
+      const itemById = new Map<string, DocumentItem>();
+
+      documents.forEach((item) => {
+        if (item.type === "folder") {
+          itemById.set(item.id, item);
+          pathById.set(item.id, {
+            id: item.id,
+            name: item.name,
+            slug: item.slug ?? null,
+          });
+        }
+      });
+
+      const chain: FolderPath[] = [];
+      let currentId: string | null = target.id;
+
+      while (currentId) {
+        const pathNode = pathById.get(currentId);
+        if (!pathNode) break;
+
+        chain.unshift(pathNode);
+        const currentItem = itemById.get(currentId);
+        currentId = currentItem?.parentId ?? null;
+      }
+
+      const nextPath = [ROOT_PATH, ...chain];
+
+      setPath((prev) => {
+        const prevIds = prev.map((item) => item.id).join("|");
+        const nextIds = nextPath.map((item) => item.id).join("|");
+        return prevIds === nextIds ? prev : nextPath;
+      });
     },
     [documents],
   );
 
   /** 🔙 Go back to breadcrumb folder */
   const goBackTo = useCallback((id: string | null) => {
-    // setPath((prev) => prev.slice(0, index + 1));
-    const index = path.findIndex((p) => p.id === id);
-    setPath(path.slice(0, index + 1));
+    setPath((prev) => {
+      const index = prev.findIndex((p) => p.id === id);
+      if (index < 0) {
+        return [ROOT_PATH];
+      }
+
+      const nextPath = prev.slice(0, index + 1);
+      return nextPath.length ? nextPath : [ROOT_PATH];
+    });
   }, []);
 
   /** 🔁 Move Item (drag & drop simulation) */
@@ -391,6 +446,7 @@ export function useDocuments() {
     currentFolderId,
     createFolder,
     openFolder,
+    navigateToFolder,
     goBackTo,
     moveItem,
     deleteItem,
