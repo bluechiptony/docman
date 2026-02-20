@@ -28,18 +28,22 @@ interface FolderPath {
   slug: string | null;
 }
 
+const ROOT_PATH: FolderPath = { id: null, name: "Root", slug: null };
+
 export function useDocuments() {
   const { user, isLoading: authLoading } = useAuthUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 🧭 Root path starts from "Root"
-  const [path, setPath] = useState<FolderPath[]>([{ id: null, name: "Root", slug: null }]);
+  const [path, setPath] = useState<FolderPath[]>([ROOT_PATH]);
+
+  const currentPath = path[path.length - 1] ?? ROOT_PATH;
 
   // 🔍 Show only items in the current folder
-  const visibleItems = documents.filter((doc) => doc.parentId === path[path.length - 1].id);
+  const visibleItems = documents.filter((doc) => doc.parentId === currentPath.id);
 
-  const currentFolderId = path[path.length - 1]?.id ?? null;
+  const currentFolderId = currentPath.id;
 
   /** 📂 Fetch documents and folders */
   const fetchDocuments = useCallback(
@@ -96,9 +100,9 @@ export function useDocuments() {
       return;
     }
 
-    const currentParentId = path[path.length - 1].id;
+    const currentParentId = currentPath.id;
     fetchDocuments(currentParentId);
-  }, [path[path.length - 1].id, authLoading, fetchDocuments]);
+  }, [currentPath.id, authLoading, fetchDocuments]);
 
   /** 📁 Create Folder */
   const createFolder = useCallback(
@@ -169,11 +173,15 @@ export function useDocuments() {
 
   /** 🔙 Go back to breadcrumb folder */
   const goBackTo = useCallback((id: string | null) => {
-    console.log("Id passed:" + id);
+    setPath((prev) => {
+      const index = prev.findIndex((p) => p.id === id);
+      if (index < 0) {
+        return [ROOT_PATH];
+      }
 
-    // setPath((prev) => prev.slice(0, index + 1));
-    const index = path.findIndex((p) => p.id === id);
-    setPath(path.slice(0, index + 1));
+      const nextPath = prev.slice(0, index + 1);
+      return nextPath.length ? nextPath : [ROOT_PATH];
+    });
   }, []);
 
   /** 🔁 Move Item (drag & drop simulation) */
