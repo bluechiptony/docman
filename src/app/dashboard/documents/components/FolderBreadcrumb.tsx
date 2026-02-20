@@ -4,7 +4,7 @@ export function FolderBreadcrumb({
   path,
   onNavigate,
 }: {
-  path: { id: string | null; name: string }[];
+  path: { id: string | null; name: string; slug: string | null }[];
   onNavigate: (id: string | null) => void;
 }) {
   return (

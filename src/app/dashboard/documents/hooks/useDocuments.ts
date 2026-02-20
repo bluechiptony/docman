@@ -8,6 +8,7 @@ import { useAuth, useAuthUser } from "@/providers/auth.provider";
 export interface DocumentItem {
   id: string;
   name: string;
+  slug?: string;
   type: "folder" | "file";
   parentId: string | null;
   // When item is a folder, this indicates DB-level folder type (e.g., APPLICANT)
@@ -24,6 +25,7 @@ export interface DocumentItem {
 interface FolderPath {
   id: string | null;
   name: string;
+  slug: string | null;
 }
 
 export function useDocuments() {
@@ -32,7 +34,7 @@ export function useDocuments() {
   const [loading, setLoading] = useState(true);
 
   // 🧭 Root path starts from "Root"
-  const [path, setPath] = useState<FolderPath[]>([{ id: null, name: "Root" }]);
+  const [path, setPath] = useState<FolderPath[]>([{ id: null, name: "Root", slug: null }]);
 
   // 🔍 Show only items in the current folder
   const visibleItems = documents.filter((doc) => doc.parentId === path[path.length - 1].id);
@@ -160,13 +162,15 @@ export function useDocuments() {
       const folder = documents.find((f) => f.id === id && f.type === "folder");
       if (!folder) return;
 
-      setPath((prev) => [...prev, { id: folder.id, name: folder.name }]);
+      setPath((prev) => [...prev, { id: folder.id, name: folder.name, slug: folder.slug ?? null }]);
     },
     [documents],
   );
 
   /** 🔙 Go back to breadcrumb folder */
   const goBackTo = useCallback((id: string | null) => {
+    console.log("Id passed:" + id);
+
     // setPath((prev) => prev.slice(0, index + 1));
     const index = path.findIndex((p) => p.id === id);
     setPath(path.slice(0, index + 1));
