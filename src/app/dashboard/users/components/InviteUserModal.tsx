@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { apiClient } from "@/api/client";
+import { clientsApi } from "@/api/clients";
 import { useAuth } from "@/providers/auth.provider";
 
 interface InviteUserModalProps {
@@ -23,49 +24,57 @@ interface InviteUserModalProps {
   onInviteSuccess?: () => void;
 }
 
-interface Organization {
+interface Client {
   id: string;
   name: string;
-  slug: string;
 }
 
 export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserModalProps) {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
-  const [organizationId, setOrganizationId] = useState("");
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [loadingClients, setLoadingClients] = useState(false);
 
-  const isSuperAdmin = user?.authentication?.role === "SUPER_ADMIN";
+  // Get organizationId from user's selected organization
+  const organizationId = user?.selectedOrganization?.id || "";
+
+  // Log every render to confirm component is alive
+  useEffect(() => {
+    console.log("🎯 InviteUserModal rendered, open:", open, "organizationId:", organizationId);
+  });
 
   useEffect(() => {
-    if (open) {
-      fetchOrganizations();
+    console.log("🔄 useEffect [open, organizationId] triggered, open:", open, "organizationId:", organizationId);
+    if (open && organizationId) {
+      console.log("📞 Calling fetchClients with organizationId:", organizationId);
+      fetchClients(organizationId);
     }
-  }, [open]);
+  }, [open, organizationId]);
 
-  const fetchOrganizations = async () => {
-    setLoadingOrgs(true);
+  const fetchClients = async (orgId: string) => {
+    console.log("🚀 fetchClients started with orgId:", orgId);
+    setLoadingClients(true);
     try {
-      if (isSuperAdmin) {
-        // Super admins get all organizations
-        const response = await apiClient.get("/organizations/admin/all");
-        setOrganizations(response.data);
-      } else {
-        // Regular admins get their organizations
-        const response = await apiClient.get("/organizations");
-        setOrganizations(response.data);
-        // Auto-select first organization for non-super-admins
-        if (response.data.length > 0) {
-          setOrganizationId(response.data[0].id);
-        }
-      }
+      console.log("� Calling clientsApi.getByOrganization with:", orgId);
+      const clients = await clientsApi.getByOrganization(orgId);
+      console.log("✅ Clients returned from API:", clients);
+      console.log("✅ Clients type:", typeof clients);
+      console.log("✅ Clients is array:", Array.isArray(clients));
+      console.log("✅ Clients count:", Array.isArray(clients) ? clients.length : 0);
+      setClients(clients || []);
+      setSelectedClientId(undefined); // Reset client selection when org changes
     } catch (error: any) {
-      console.error("Failed to fetch organizations:", error);
-      toast.error("Failed to load organizations");
+      console.error("❌ Failed to fetch clients:", error);
+      console.error("❌ Error status:", error.response?.status);
+      console.error("❌ Error data:", error.response?.data);
+      console.error("❌ Error message:", error.message);
+      console.error("❌ Error config:", error.config);
+      // Don't show error toast for clients - it's optional
+      setClients([]);
     } finally {
-      setLoadingOrgs(false);
+      setLoadingClients(false);
     }
   };
 
@@ -94,10 +103,14 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
     setLoading(true);
 
     try {
-      await apiClient.post("/auth/invite", { email, organizationId });
+      const payload: any = { email, organizationId };
+      if (selectedClientId) {
+        payload.clientId = selectedClientId;
+      }
+      await apiClient.post("/auth/invite", payload);
       toast.success(`Invitation sent to ${email}`);
       setEmail("");
-      setOrganizationId("");
+      setSelectedClientId(undefined);
       onClose();
       onInviteSuccess?.();
     } catch (error: any) {
@@ -139,32 +152,38 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
 
           <div className="space-y-2">
             <Label htmlFor="organization">Organization</Label>
-            {loadingOrgs ? (
-              <div className="text-sm text-muted-foreground">Loading organizations...</div>
-            ) : isSuperAdmin ? (
-              <Select value={organizationId} onValueChange={setOrganizationId} disabled={loading}>
-                <SelectTrigger id="organization">
-                  <SelectValue placeholder="Select an organization" />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>
-                      {org.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="text-sm font-medium p-2 border rounded-md bg-muted">
+              {user?.selectedOrganization?.name || "No organization selected"}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="client">
+              Assign to Client <span className="text-xs text-muted-foreground">(optional)</span>
+            </Label>
+            {loadingClients ? (
+              <div className="text-sm text-muted-foreground">Loading clients...</div>
             ) : (
-              <Select value={organizationId} onValueChange={setOrganizationId} disabled={loading}>
-                <SelectTrigger id="organization">
-                  <SelectValue placeholder="Select an organization" />
+              <Select
+                value={selectedClientId || ""}
+                onValueChange={(value) => setSelectedClientId(value || undefined)}
+                disabled={loading}
+              >
+                <SelectTrigger id="client">
+                  <SelectValue placeholder="No client selected" />
                 </SelectTrigger>
                 <SelectContent>
-                  {organizations.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>
-                      {org.name}
+                  {clients.length === 0 ? (
+                    <SelectItem value="__none" disabled>
+                      No clients available
                     </SelectItem>
-                  ))}
+                  ) : (
+                    clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             )}

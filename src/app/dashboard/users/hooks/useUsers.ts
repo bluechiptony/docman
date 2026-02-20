@@ -13,7 +13,7 @@ export interface User {
   createdAt: Date | string;
   updatedAt: Date | string;
   authentication: {
-    role: "ADMINISTRATOR" | "EDITOR" | "VIEWER";
+    role: "ADMINISTRATOR" | "MANAGER" | "EDITOR" | "VIEWER";
     active: boolean;
   };
   organizations?: any[];
@@ -88,7 +88,7 @@ export function useUsers() {
     try {
       await apiClient.post(`/users/${id}/deactivate`);
       setUsers((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, authentication: { ...u.authentication, active: false } } : u))
+        prev.map((u) => (u.id === id ? { ...u, authentication: { ...u.authentication, active: false } } : u)),
       );
       toast.success("User deactivated");
       return true;
@@ -114,7 +114,7 @@ export function useUsers() {
     try {
       await apiClient.patch(`/users/${userId}/role`, { role });
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, authentication: { ...u.authentication, role } } : u))
+        prev.map((u) => (u.id === userId ? { ...u, authentication: { ...u.authentication, role } } : u)),
       );
       toast.success("Role updated");
     } catch (err: any) {

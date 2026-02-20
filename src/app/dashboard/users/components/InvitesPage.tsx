@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import { useInvites } from "../hooks/useInvites";
 import { InviteUserModal } from "./InviteUserModal";
+import { BulkInviteModal } from "./BulkInviteModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Trash2 } from "lucide-react";
+import { Mail, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 export function InvitesPage() {
   const { invites, loading, fetchPendingInvites, revokeInvite } = useInvites();
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [bulkInviteModalOpen, setBulkInviteModalOpen] = useState(false);
 
   useEffect(() => {
     fetchPendingInvites();
@@ -60,10 +62,16 @@ export function InvitesPage() {
           <h1 className="text-3xl font-bold">User Invitations</h1>
           <p className="text-muted-foreground mt-2">Manage pending and sent user invitations</p>
         </div>
-        <Button onClick={() => setInviteModalOpen(true)} className="gap-2">
-          <Mail className="w-4 h-4" />
-          Invite User
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setBulkInviteModalOpen(true)} variant="outline" className="gap-2">
+            <Upload className="w-4 h-4" />
+            Bulk Import
+          </Button>
+          <Button onClick={() => setInviteModalOpen(true)} className="gap-2">
+            <Mail className="w-4 h-4" />
+            Invite User
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -120,6 +128,12 @@ export function InvitesPage() {
       <InviteUserModal
         open={inviteModalOpen}
         onClose={() => setInviteModalOpen(false)}
+        onInviteSuccess={() => fetchPendingInvites()}
+      />
+
+      <BulkInviteModal
+        open={bulkInviteModalOpen}
+        onClose={() => setBulkInviteModalOpen(false)}
         onInviteSuccess={() => fetchPendingInvites()}
       />
     </div>

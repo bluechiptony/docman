@@ -3,17 +3,19 @@
 import { useEffect, useState } from "react";
 import { useInvites } from "../hooks/useInvites";
 import { InviteUserModal } from "./InviteUserModal";
+import { BulkInviteModal } from "./BulkInviteModal";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Trash2, Copy, ExternalLink } from "lucide-react";
+import { Mail, Trash2, Copy, ExternalLink, Upload } from "lucide-react";
 import Link from "next/link";
 
 export function InvitesTabContent() {
   const { invites, loading, fetchPendingInvites, revokeInvite } = useInvites();
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [bulkInviteModalOpen, setBulkInviteModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedInviteId, setSelectedInviteId] = useState<string | null>(null);
   const [selectedInviteEmail, setSelectedInviteEmail] = useState<string | null>(null);
@@ -81,7 +83,11 @@ export function InvitesTabContent() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button onClick={() => setBulkInviteModalOpen(true)} variant="outline" className="gap-2">
+          <Upload className="w-4 h-4" />
+          Bulk Import
+        </Button>
         <Button onClick={() => setInviteModalOpen(true)} className="gap-2">
           <Mail className="w-4 h-4" />
           Invite User
@@ -159,6 +165,12 @@ export function InvitesTabContent() {
       <InviteUserModal
         open={inviteModalOpen}
         onClose={() => setInviteModalOpen(false)}
+        onInviteSuccess={() => fetchPendingInvites()}
+      />
+
+      <BulkInviteModal
+        open={bulkInviteModalOpen}
+        onClose={() => setBulkInviteModalOpen(false)}
         onInviteSuccess={() => fetchPendingInvites()}
       />
 

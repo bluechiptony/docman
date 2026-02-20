@@ -42,6 +42,7 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
 
     if (status === 401) {
+      console.log("🔒 Unauthorized:", error.response);
       console.warn("⚠️ Unauthorized: Token may have expired");
       // Optionally redirect to login or trigger refresh
       // window.location.href = "/login";

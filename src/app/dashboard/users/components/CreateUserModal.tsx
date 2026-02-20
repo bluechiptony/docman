@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { apiClient } from "@/api/client";
-import { useAuthUser } from "@/providers/auth.provider";
+import { useAuth, useAuthUser } from "@/providers/auth.provider";
 
 interface CreateUserModalProps {
   open: boolean;
@@ -23,16 +23,10 @@ interface CreateUserModalProps {
   onUserCreated?: () => void;
 }
 
-interface Organization {
-  id: string;
-  name: string;
-}
-
 export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModalProps) {
+  const { user } = useAuth();
   const { user: authUser } = useAuthUser();
   const [loading, setLoading] = useState(false);
-  const [loadingOrgs, setLoadingOrgs] = useState(false);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -40,31 +34,14 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
     lastName: "",
     email: "",
     role: "ADMINISTRATOR", // Default to ADMINISTRATOR
-    organizationIds: [] as string[],
   });
 
-  // Check if current user is super admin and fetch organizations
+  // Check if current user is super admin
   useEffect(() => {
     if (!open) return;
 
     const isSuperAdmin = authUser?.authentication?.role === "SUPER_ADMIN";
     setIsSuperAdmin(isSuperAdmin);
-
-    // Fetch organizations for selection
-    const fetchOrganizations = async () => {
-      setLoadingOrgs(true);
-      try {
-        const response = await apiClient.get("/organizations");
-        setOrganizations(response.data || []);
-      } catch (error: any) {
-        console.error("Failed to fetch organizations:", error);
-        toast.error("Failed to load organizations");
-      } finally {
-        setLoadingOrgs(false);
-      }
-    };
-
-    fetchOrganizations();
   }, [open, authUser]);
 
   const handleSubmit = async () => {
@@ -86,9 +63,9 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
       return;
     }
 
-    // For ADMINISTRATOR role, at least one organization must be selected
-    if (formData.role === "ADMINISTRATOR" && formData.organizationIds.length === 0) {
-      toast.error("Please select at least one organization for the admin");
+    // For ADMINISTRATOR and MANAGER roles, ensure organization is selected
+    if ((formData.role === "ADMINISTRATOR" || formData.role === "MANAGER") && !user?.selectedOrganization) {
+      toast.error("Organization is required for this role");
       return;
     }
 
@@ -102,8 +79,9 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
         role: formData.role,
       };
 
-      if (formData.role === "ADMINISTRATOR") {
-        payload.organizationIds = formData.organizationIds;
+      // Automatically assign selected organization
+      if ((formData.role === "ADMINISTRATOR" || formData.role === "MANAGER") && user?.selectedOrganization) {
+        payload.organizationIds = [user.selectedOrganization.id];
       }
 
       await apiClient.post("/auth/create-user", payload);
@@ -115,7 +93,6 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
         lastName: "",
         email: "",
         role: "ADMINISTRATOR",
-        organizationIds: [],
       });
 
       onClose();
@@ -127,15 +104,6 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleOrganization = (orgId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      organizationIds: prev.organizationIds.includes(orgId)
-        ? prev.organizationIds.filter((id) => id !== orgId)
-        : [...prev.organizationIds, orgId],
-    }));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -152,7 +120,9 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
           <DialogDescription>
             {formData.role === "SUPER_ADMIN"
               ? "Create a new super admin account"
-              : "Create a new admin account and assign to organizations"}
+              : formData.role === "ADMINISTRATOR"
+                ? "Create a new admin account and assign to organizations"
+                : "Create a new manager account and assign to clients"}
           </DialogDescription>
         </DialogHeader>
 
@@ -207,39 +177,10 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
-                  <SelectItem value="ADMINISTRATOR">Admin</SelectItem>
+                  <SelectItem value="ADMINISTRATOR">Administrator</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          )}
-
-          {/* Organization Selection (for ADMINISTRATOR role) */}
-          {formData.role === "ADMINISTRATOR" && (
-            <div className="space-y-2">
-              <Label>Organizations</Label>
-              <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
-                {loadingOrgs ? (
-                  <p className="text-sm text-muted-foreground">Loading organizations...</p>
-                ) : organizations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No organizations available</p>
-                ) : (
-                  organizations.map((org) => (
-                    <label key={org.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.organizationIds.includes(org.id)}
-                        onChange={() => toggleOrganization(org.id)}
-                        disabled={loading}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{org.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              {formData.organizationIds.length === 0 && (
-                <p className="text-xs text-amber-600">Please select at least one organization</p>
-              )}
             </div>
           )}
         </div>

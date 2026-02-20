@@ -15,8 +15,10 @@ import { ArrowLeft, Mail } from "lucide-react";
 const ActivateAccountSchema = Yup.object().shape({
   password: Yup.string().min(8, "Password must be at least 8 characters").required("Password is required"),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref("password")], "Passwords must match")
-    .required("Confirm password is required"),
+    .required("Confirm password is required")
+    .test("passwords-match", "Passwords must match", function (value) {
+      return value === this.parent.password;
+    }),
 });
 
 function ActivateAccountContent() {
@@ -63,6 +65,7 @@ function ActivateAccountContent() {
       await apiClient.post("/auth/activate-account", {
         token,
         password: values.password,
+        confirmPassword: values.confirmPassword,
       });
 
       toast.success("Account activated successfully! Redirecting to login...");

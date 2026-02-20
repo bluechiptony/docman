@@ -14,7 +14,7 @@ interface User {
   createdAt: Date | string;
   updatedAt: Date | string;
   authentication: {
-    role: "SUPER_ADMIN" | "ADMINISTRATOR" | "EDITOR" | "VIEWER";
+    role: "SUPER_ADMIN" | "ADMINISTRATOR" | "MANAGER" | "EDITOR" | "VIEWER";
     active: boolean;
   };
   organizations: { id: string; name: string; role: string }[];

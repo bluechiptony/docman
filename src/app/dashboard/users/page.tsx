@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Users, Mail, Loader, Plus } from "lucide-react";
+import { Users, Mail, Loader, Plus, Building2 } from "lucide-react";
 import UserTable from "./components/UserTable";
 import { InvitesTabContent } from "./components/InvitesTabContent";
+import { ClientListTab } from "./components/ClientListTab";
 import { CreateUserModal } from "./components/CreateUserModal";
 import { useUsers } from "./hooks/useUsers";
 import { Input } from "@/components/ui/input";
@@ -50,7 +51,7 @@ export default function UsersPage() {
       </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="users" className="gap-2">
             <Users className="w-4 h-4" />
             Users
@@ -58,6 +59,10 @@ export default function UsersPage() {
           <TabsTrigger value="invites" className="gap-2">
             <Mail className="w-4 h-4" />
             Invitations
+          </TabsTrigger>
+          <TabsTrigger value="clients" className="gap-2">
+            <Building2 className="w-4 h-4" />
+            Client Assignments
           </TabsTrigger>
         </TabsList>
 
@@ -88,6 +93,11 @@ export default function UsersPage() {
         {/* Invites Tab */}
         <TabsContent value="invites">
           <InvitesTabContent />
+        </TabsContent>
+
+        {/* Client Assignments Tab */}
+        <TabsContent value="clients">
+          <ClientListTab />
         </TabsContent>
       </Tabs>
 
