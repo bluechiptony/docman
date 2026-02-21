@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Plus, FolderPlus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Toaster, toast } from "sonner";
 import { DocumentsGrid } from "./DocumentsGrid";
 import FolderSidePanel from "./FolderSidePanel";
@@ -13,12 +14,17 @@ import UploadModal from "./UploadModal";
 import CreateFolderModal from "./CreateFolderModal";
 import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { useDocuments } from "../hooks/useDocuments";
+import { clientsApi, type Client } from "@/api/clients";
+import { useAuthUser } from "@/providers/auth.provider";
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const { user } = useAuthUser();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("all");
   const searchParams = useSearchParams();
   const folderId = searchParams.get("folderId");
 
@@ -36,12 +42,56 @@ export default function DocumentsPage() {
   } = useDocuments();
   const currentFolderId = path[path.length - 1]?.id ?? null;
   const parentFolderId = path.length > 0 ? path[path.length - 1].id : undefined;
+  const selectedOrgId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
 
   useEffect(() => {
     if (!folderId) return;
     navigateToFolder(folderId);
     router.replace("/dashboard/documents");
   }, [folderId, navigateToFolder, router]);
+
+  useEffect(() => {
+    if (!selectedOrgId) {
+      setClients([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await clientsApi.getByOrganization(selectedOrgId);
+        if (!cancelled) {
+          setClients(data || []);
+        }
+      } catch (error) {
+        console.error("Failed to load clients:", error);
+        if (!cancelled) {
+          toast.error("Failed to load clients");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedOrgId]);
+
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId) || null,
+    [clients, selectedClientId],
+  );
+
+  const selectedClientFolderIds = useMemo(() => {
+    if (!selectedClient) return new Set<string>();
+    return new Set((selectedClient.folders || []).map((folder) => folder.id));
+  }, [selectedClient]);
+
+  useEffect(() => {
+    if (selectedClientId === "all") return;
+    if (!currentFolderId) return;
+    if (selectedClientFolderIds.has(currentFolderId)) return;
+    goBackTo(null);
+  }, [selectedClientId, currentFolderId, selectedClientFolderIds, goBackTo]);
 
   // console.log(parentFolderId);
   // console.log(path);
@@ -56,8 +106,24 @@ export default function DocumentsPage() {
     setIsCreateFolderOpen(true);
   };
 
+  const clientFilteredItems = useMemo(() => {
+    if (selectedClientId === "all") return visibleItems;
+
+    if (!currentFolderId) {
+      return visibleItems.filter((item) => item.type === "folder" && selectedClientFolderIds.has(item.id));
+    }
+
+    if (!selectedClientFolderIds.has(currentFolderId)) {
+      return [];
+    }
+
+    return visibleItems;
+  }, [currentFolderId, selectedClientId, selectedClientFolderIds, visibleItems]);
+
   /** 🔍 Filter documents by name */
-  const filteredItems = visibleItems.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredItems = clientFilteredItems.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <div className="flex flex-col gap-6 h-full">
@@ -76,16 +142,31 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {/* 🔍 Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search documents..."
-          className="pl-9"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      {/* 🔍 Search Bar + Client Filter */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search documents..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+          <SelectTrigger className="w-full md:w-60">
+            <SelectValue placeholder="Filter by client" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All clients</SelectItem>
+            {clients.map((client) => (
+              <SelectItem key={client.id} value={client.id}>
+                {client.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Main area with side panel */}

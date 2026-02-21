@@ -43,6 +43,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isLoggingOut: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => void;
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
 
   // Initialize auth state from localStorage
@@ -135,11 +137,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    setIsLoggingOut(true);
     localStorage.removeItem("token");
+    sessionStorage.removeItem("redirectAfterLogin");
     setToken(null);
     setUser(null);
     toast.info("Logged out successfully");
-    router.push("/login");
+    router.push("/");
+    setTimeout(() => setIsLoggingOut(false), 0);
   };
 
   const refreshUser = () => {
@@ -170,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     isAuthenticated: !!token && !!user,
     isLoading,
+    isLoggingOut,
     login,
     logout,
     refreshUser,
@@ -199,6 +205,14 @@ export function useAuthUser() {
 
   useEffect(() => {
     if (!context.user && !context.isLoading) {
+      if (context.isLoggingOut) {
+        return;
+      }
+
+      if (pathname === "/" || pathname === "/login") {
+        return;
+      }
+
       // Save current path for redirect after login
       if (pathname && pathname !== "/login") {
         sessionStorage.setItem("redirectAfterLogin", pathname);
