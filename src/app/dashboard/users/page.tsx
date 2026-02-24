@@ -34,7 +34,8 @@ export default function UsersPage() {
     return null;
   }
 
-  const isSuperAdmin = authUser?.authentication?.role === "SUPER_ADMIN";
+  const isSuperAdmin =
+    authUser?.authentication?.role === "SUPER_ADMIN" || authUser?.authentication?.role === "ADMINISTRATOR";
 
   const filtered = users.filter(
     (u) =>
@@ -82,9 +83,9 @@ export default function UsersPage() {
                   Create User
                 </Button>
               )}
-              <p className="text-sm text-muted-foreground">
+              {/* <p className="text-sm text-muted-foreground">
                 Logged in as <span className="font-medium">{user?.firstName}</span> ({user?.authentication?.role})
-              </p>
+              </p> */}
             </div>
           </div>
           <UserTable users={filtered} isLoading={loading} />

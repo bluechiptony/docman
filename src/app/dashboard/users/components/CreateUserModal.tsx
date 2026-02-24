@@ -40,7 +40,8 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
   useEffect(() => {
     if (!open) return;
 
-    const isSuperAdmin = authUser?.authentication?.role === "SUPER_ADMIN";
+    const isSuperAdmin =
+      authUser?.authentication?.role === "SUPER_ADMIN" || authUser?.authentication?.role === "ADMINISTRATOR";
     setIsSuperAdmin(isSuperAdmin);
   }, [open, authUser]);
 
