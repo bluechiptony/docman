@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Clock, AlertCircle, FileText } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle, FileText, HelpCircle } from "lucide-react";
 import { useAuthUser } from "@/providers/auth.provider";
 import { getDocumentPreviewUrl } from "@/lib/documents.service";
 
@@ -257,9 +258,17 @@ export default function ModerationDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Document Moderation</h1>
-        <p className="text-gray-600 mt-1">Review and approve/reject uploaded documents</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Document Moderation</h1>
+          <p className="text-gray-600 mt-1">Review and approve/reject uploaded documents</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/help/admin/moderation" className="inline-flex items-center gap-2">
+            <HelpCircle className="h-4 w-4" />
+            Help
+          </Link>
+        </Button>
       </div>
 
       {/* Statistics Cards */}

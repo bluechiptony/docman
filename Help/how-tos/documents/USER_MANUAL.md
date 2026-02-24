@@ -11,12 +11,13 @@ The Documents page is the heart of DocMan—your central hub for organizing, man
 1. [Page Overview](#page-overview)
 2. [Navigation & Breadcrumbs](#navigation--breadcrumbs)
 3. [Creating Folders](#creating-folders)
-4. [Uploading Documents](#uploading-documents)
-5. [Upload Walkthrough: Complete Tutorial](#upload-walkthrough-complete-tutorial)
-6. [Searching & Filtering](#searching--filtering)
-7. [Managing Items](#managing-items)
-8. [Best Practices](#best-practices)
-9. [Troubleshooting](#troubleshooting)
+4. [Folder Requirements Configuration (Admin)](#folder-requirements-configuration-admin)
+5. [Uploading Documents](#uploading-documents)
+6. [Upload Walkthrough: Complete Tutorial](#upload-walkthrough-complete-tutorial)
+7. [Searching & Filtering](#searching--filtering)
+8. [Managing Items](#managing-items)
+9. [Best Practices](#best-practices)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -200,6 +201,31 @@ Documents/
     ├── Agreements/
     └── Compliances/
 ```
+
+---
+
+## Folder Requirements Configuration (Admin)
+
+Admins can create reusable folder requirement configurations and apply them during folder creation.
+
+### Create the Configuration
+
+1. Go to **Settings → Folder**
+2. Click **Add Folder Config**
+3. Enter a configuration name
+4. Select one or more document types
+5. Mark each selected type as **Required** or **Optional**
+6. Click **Create**
+
+### Apply It During Folder Creation
+
+1. Open **Documents** and click **New Folder**
+2. Enter **Folder Name**
+3. Choose **Folder Type**
+4. In **Required Documents (Optional)**, select a configuration
+5. Click **Create Folder**
+
+Use this when you want consistent document intake expectations across similar folders.
 
 ---
 
@@ -828,15 +854,16 @@ Use this mode when you want to classify a document as you upload it.
 
 ## Quick Reference Card
 
-| Task                 | Steps                                                         |
-| -------------------- | ------------------------------------------------------------- |
-| **Create Folder**    | Click "New Folder" → Enter name → Press Enter or click Create |
-| **Create Subfolder** | Navigate into folder → Click "New Folder" → Enter name        |
-| **Upload Document**  | Click "Upload" → Select file → Wait for upload to complete    |
-| **Search**           | Type in search bar → Results filter automatically             |
-| **Navigate**         | Double-click folder or use breadcrumbs                        |
-| **Rename**           | Right-click item or use actions menu → Edit name              |
-| **Move Item**        | Drag and drop to new location                                 |
+| Task                    | Steps                                                         |
+| ----------------------- | ------------------------------------------------------------- |
+| **Create Folder**       | Click "New Folder" → Enter name → Press Enter or click Create |
+| **Apply Folder Config** | New Folder → Required Documents → Select configuration        |
+| **Create Subfolder**    | Navigate into folder → Click "New Folder" → Enter name        |
+| **Upload Document**     | Click "Upload" → Select file → Wait for upload to complete    |
+| **Search**              | Type in search bar → Results filter automatically             |
+| **Navigate**            | Double-click folder or use breadcrumbs                        |
+| **Rename**              | Right-click item or use actions menu → Edit name              |
+| **Move Item**           | Drag and drop to new location                                 |
 
 ---
 
@@ -860,4 +887,4 @@ For more help or to report issues, contact your system administrator.
 ---
 
 **Documents Page Feature | DocMan**
-_Last Updated: December 15, 2025_
+_Last Updated: February 24, 2026_

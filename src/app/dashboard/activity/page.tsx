@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActivityLogList } from "@/components/common/ActivityLogList";
 import { getOrganizationActivityLogs, type ActivityLog } from "@/lib/activity-log.service";
@@ -9,7 +10,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Activity, X, Loader } from "lucide-react";
+import { Activity, X, Loader, HelpCircle } from "lucide-react";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 
 export default function ActivityPage() {
@@ -116,20 +117,28 @@ export default function ActivityPage() {
           <p className="text-muted-foreground mt-1">Track all activities across your organization</p>
         </div>
 
-        {canSelectOrganization && user.organizations && user.organizations.length > 1 && (
-          <Select value={user.selectedOrganization?.id || ""} onValueChange={handleOrganizationChange}>
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="Select organization" />
-            </SelectTrigger>
-            <SelectContent>
-              {user.organizations.map((org) => (
-                <SelectItem key={org.id} value={org.id}>
-                  {org.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <div className="flex items-center gap-4">
+          {canSelectOrganization && user.organizations && user.organizations.length > 1 && (
+            <Select value={user.selectedOrganization?.id || ""} onValueChange={handleOrganizationChange}>
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="Select organization" />
+              </SelectTrigger>
+              <SelectContent>
+                {user.organizations.map((org) => (
+                  <SelectItem key={org.id} value={org.id}>
+                    {org.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button asChild variant="outline" size="sm">
+            <Link href="/help" className="inline-flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              Help
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

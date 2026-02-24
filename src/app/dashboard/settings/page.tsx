@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader } from "lucide-react";
+import { HelpCircle, Loader } from "lucide-react";
 import GeneralSettings from "@/components/settings/GeneralSettings";
 import StorageSettings from "@/components/settings/StorageSettings";
 import UserAccessSettings from "@/components/settings/UserAccessSettings";
@@ -31,7 +33,15 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold mb-2">Settings</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/help/admin/settings" className="inline-flex items-center gap-2">
+            <HelpCircle className="h-4 w-4" />
+            Help
+          </Link>
+        </Button>
+      </div>
       <Card>
         <CardContent className="p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Users, Mail, Loader, Plus, Building2 } from "lucide-react";
+import { Users, Mail, Loader, Plus, Building2, HelpCircle } from "lucide-react";
 import UserTable from "./components/UserTable";
 import { InvitesTabContent } from "./components/InvitesTabContent";
 import { ClientListTab } from "./components/ClientListTab";
@@ -46,9 +47,17 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6 h-full p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">User Management</h1>
-        <p className="text-sm text-muted-foreground">Manage user roles and invitations</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">User Management</h1>
+          <p className="text-sm text-muted-foreground">Manage user roles and invitations</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/help/admin/users" className="inline-flex items-center gap-2">
+            <HelpCircle className="h-4 w-4" />
+            Help
+          </Link>
+        </Button>
       </div>
 
       <Tabs defaultValue="users" className="w-full">

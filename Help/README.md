@@ -10,6 +10,8 @@ Help/
 │   ├── settings/
 │   │   ├── document-types/
 │   │   │   └── USER_MANUAL.md
+│   │   ├── folder/
+│   │   │   └── USER_MANUAL.md
 │   │   ├── users/
 │   │   └── appearance/
 │   ├── documents/
@@ -25,7 +27,6 @@ For each new feature or major functionality:
 
 1. Create a folder path following the app structure: `Help/how-tos/[section]/[feature]/`
 2. Add a `USER_MANUAL.md` file with:
-
    - Feature overview
    - Step-by-step instructions
    - Tutorial scripts (for video/training content)
@@ -44,6 +45,7 @@ For each new feature or major functionality:
 
 - ✅ `documents/` - Documents page overview and folder creation
 - ✅ `settings/document-types/` - Document Types management
+- ✅ `settings/folder/` - Folder required documents configuration
 - ✅ `documents/exshare/` - External Share (email + OTP) usage guide
 
 ## Upcoming Manuals
@@ -60,4 +62,4 @@ For each new feature or major functionality:
 
 ---
 
-**Last Updated:** December 15, 2025
+**Last Updated:** February 24, 2026

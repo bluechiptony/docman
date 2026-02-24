@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, Settings, FileText, Database, Shield } from "lucide-react";
+import { ArrowLeft, Settings, FileText, Database, Shield, FolderTree } from "lucide-react";
 
 export default function AdminSettingsHelpPage() {
   return (
@@ -17,7 +17,9 @@ export default function AdminSettingsHelpPage() {
             <Settings className="w-8 h-8 text-red-600" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">System Settings Guide</h1>
-              <p className="text-gray-600 mt-1">Configure organization settings and document types</p>
+              <p className="text-gray-600 mt-1">
+                Configure organization settings, document types, and folder requirements
+              </p>
             </div>
           </div>
         </div>
@@ -80,13 +82,21 @@ export default function AdminSettingsHelpPage() {
                   Document types allow you to categorize and organize documents in a structured way. You can create
                   custom document types specific to your organization's needs.
                 </p>
+                <h3 className="font-semibold text-gray-900 mb-3">First-Time Admin Setup (Automatic Modal)</h3>
+                <ol className="list-decimal list-inside space-y-3 mb-6">
+                  <li>
+                    When no document types exist, admins see a "Create Your First Document Type" modal on dashboard load
+                  </li>
+                  <li>Enter a document type name (required)</li>
+                  <li>Optionally add a description</li>
+                  <li>Click "Create Document Type" (or "Skip for Now" to continue and configure later)</li>
+                </ol>
                 <h3 className="font-semibold text-gray-900 mb-3">Creating a New Document Type</h3>
                 <ol className="list-decimal list-inside space-y-3">
                   <li>Go to Settings → Document Types</li>
                   <li>Click "Add Document Type"</li>
                   <li>Enter the document type name</li>
                   <li>Optionally add a description</li>
-                  <li>Configure any required fields</li>
                   <li>Click "Create"</li>
                 </ol>
               </div>
@@ -96,6 +106,36 @@ export default function AdminSettingsHelpPage() {
                   "Report", etc.
                 </p>
               </div>
+            </div>
+          </section>
+
+          {/* Folder Required Documents */}
+          <section className="bg-white rounded-lg shadow p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <FolderTree className="w-6 h-6 text-red-600" />
+              Folder Required Documents
+            </h2>
+            <div className="space-y-4 text-gray-700">
+              <p>
+                Folder configurations let admins define reusable required/optional document type sets for folder
+                creation.
+              </p>
+              <h3 className="font-semibold text-gray-900 mb-2">Create a Folder Config</h3>
+              <ol className="list-decimal list-inside space-y-2">
+                <li>Go to Settings → Folder</li>
+                <li>Click "Add Folder Config"</li>
+                <li>Enter a configuration name</li>
+                <li>Select one or more document types</li>
+                <li>Mark each selected type as Required or Optional</li>
+                <li>Click "Create"</li>
+              </ol>
+              <h3 className="font-semibold text-gray-900 mb-2 mt-4">Apply Config When Creating Folders</h3>
+              <ol className="list-decimal list-inside space-y-2">
+                <li>Go to Documents → New Folder</li>
+                <li>Choose folder name and folder type</li>
+                <li>Select a value in "Required Documents (Optional)"</li>
+                <li>Create the folder</li>
+              </ol>
             </div>
           </section>
 
@@ -178,6 +218,10 @@ export default function AdminSettingsHelpPage() {
               <li className="flex gap-3">
                 <span className="text-red-600 font-bold">✓</span>
                 <span>Plan document types before implementation</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-red-600 font-bold">✓</span>
+                <span>Create reusable folder configs for repeatable intake workflows</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-red-600 font-bold">✓</span>

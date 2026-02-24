@@ -10,11 +10,12 @@ Document Types allow you to organize and categorize your documents by creating c
 
 1. [Accessing Document Types](#accessing-document-types)
 2. [Viewing Your Document Types](#viewing-your-document-types)
-3. [Creating a New Document Type](#creating-a-new-document-type)
-4. [Editing a Document Type](#editing-a-document-type)
-5. [Deleting a Document Type](#deleting-a-document-type)
-6. [Best Practices](#best-practices)
-7. [Troubleshooting](#troubleshooting)
+3. [First-Time Admin Setup Modal](#first-time-admin-setup-modal)
+4. [Creating a New Document Type](#creating-a-new-document-type)
+5. [Editing a Document Type](#editing-a-document-type)
+6. [Deleting a Document Type](#deleting-a-document-type)
+7. [Best Practices](#best-practices)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -49,6 +50,39 @@ When you first access Document Types, you'll see:
 - A friendly message: "No document types yet"
 - A suggestion to "Create your first document type to organize your documents"
 - An "Add Document Type" button to get started
+
+---
+
+## First-Time Admin Setup Modal
+
+When an administrator enters the dashboard and the organization has no document types, DocMan automatically opens a setup modal.
+
+### What the Modal Looks Like
+
+- **Title:** "Create Your First Document Type"
+- **Required field:** Document Type Name
+- **Optional field:** Description
+- **Actions:** "Create Document Type" and "Skip for Now"
+
+### First-Time Setup Steps
+
+1. Sign in as an **Administrator** or **Super Admin**
+2. Enter a document type name (for example: "Contract" or "Invoice")
+3. (Optional) Add a short description for team context
+4. Click **Create Document Type**
+5. Repeat later in Settings if you need more types
+
+### If You Click "Skip for Now"
+
+- The modal closes for the current session
+- You can continue working in the dashboard
+- You can add document types anytime from **Settings → Document Types**
+
+### Recommended First 3 Types
+
+- Contract
+- Invoice
+- Report
 
 ---
 
@@ -282,6 +316,22 @@ If a document type has documents assigned to it:
 
 ---
 
+### First-time modal is not showing
+
+**Problem:** You expected the "Create Your First Document Type" modal, but it did not appear.
+
+**Possible reasons:**
+
+- You are not logged in as an admin role
+- Your organization already has at least one document type
+- Your session lacks organization context
+
+**Solution:**
+
+1. Confirm your role is **Administrator** or **Super Admin**
+2. Open **Settings → Document Types** and verify whether types already exist
+3. Refresh the page and switch back to your intended organization
+
 ### Changes aren't showing up
 
 **Problem:** You created or edited a document type, but don't see the changes.
@@ -343,15 +393,16 @@ For more help or to report issues, contact your system administrator.
 
 ## Quick Reference Card
 
-| Task            | Steps                                            |
-| --------------- | ------------------------------------------------ |
-| **View Types**  | Settings → Document Types → See table            |
-| **Create Type** | Add Document Type → Fill form → Create           |
-| **Edit Type**   | Click pencil icon → Update fields → Update       |
-| **Delete Type** | Click trash icon (if enabled) → Confirm → Delete |
-| **Learn more**  | Hover over field labels or check this manual     |
+| Task            | Steps                                                    |
+| --------------- | -------------------------------------------------------- |
+| **First Setup** | Dashboard modal → Name → (Optional) Description → Create |
+| **View Types**  | Settings → Document Types → See table                    |
+| **Create Type** | Add Document Type → Fill form → Create                   |
+| **Edit Type**   | Click pencil icon → Update fields → Update               |
+| **Delete Type** | Click trash icon (if enabled) → Confirm → Delete         |
+| **Learn more**  | Hover over field labels or check this manual             |
 
 ---
 
 **Document Types Feature | DocMan**
-_Last Updated: December 15, 2025_
+_Last Updated: February 24, 2026_

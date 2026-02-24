@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, Users, Mail, Shield, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, Mail, Shield, Trash2, Building2 } from "lucide-react";
 
 export default function UsersHelpPage() {
   return (
@@ -17,7 +17,7 @@ export default function UsersHelpPage() {
             <Users className="w-8 h-8 text-red-600" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">User Management Guide</h1>
-              <p className="text-gray-600 mt-1">Manage users, roles, permissions, and access levels</p>
+              <p className="text-gray-600 mt-1">Manage managers, clients, and client assignments</p>
             </div>
           </div>
         </div>
@@ -32,7 +32,8 @@ export default function UsersHelpPage() {
             <div className="space-y-4 text-gray-700">
               <p>
                 As an administrator, you have full control over user management. This includes inviting new users,
-                managing roles and permissions, and removing users from your organization.
+                creating manager accounts, managing clients, assigning clients to managers, and removing users from your
+                organization.
               </p>
               <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-900">
@@ -42,26 +43,70 @@ export default function UsersHelpPage() {
             </div>
           </section>
 
-          {/* Inviting Users */}
+          {/* Creating Manager Users */}
           <section className="bg-white rounded-lg shadow p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Mail className="w-6 h-6 text-red-600" />
-              Inviting New Users
+              Creating Manager Users
             </h2>
             <div className="space-y-4 text-gray-700">
               <ol className="list-decimal list-inside space-y-3">
-                <li>Navigate to Settings → Users</li>
-                <li>Click the "Invite Users" button</li>
-                <li>Enter the email address of the user you want to invite</li>
-                <li>Select the user's role (Admin, Manager, Editor, Viewer)</li>
-                <li>Click "Send Invitation"</li>
+                <li>Navigate to Dashboard → User Management</li>
+                <li>Open the Users tab</li>
+                <li>Click "Create User"</li>
+                <li>Enter first name, last name, and email</li>
+                <li>Select role: "Manager"</li>
+                <li>Click "Create User" to send activation email</li>
               </ol>
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-900">
-                  <strong>Tip:</strong> You can invite multiple users at once by entering multiple email addresses
-                  separated by commas.
+                  <strong>Tip:</strong> Managers should only be created in the organization where they will manage
+                  clients.
                 </p>
               </div>
+            </div>
+          </section>
+
+          {/* Client Management */}
+          <section className="bg-white rounded-lg shadow p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-red-600" />
+              Client Management (Creation)
+            </h2>
+            <div className="space-y-4 text-gray-700">
+              <ol className="list-decimal list-inside space-y-3">
+                <li>Navigate to Dashboard → Clients</li>
+                <li>Click "Create Client"</li>
+                <li>Enter the client name</li>
+                <li>Click "Create"</li>
+              </ol>
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-900">
+                  <strong>Tip:</strong> Create clients first, then assign them to managers from the User Management
+                  page.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Client Assignment */}
+          <section className="bg-white rounded-lg shadow p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Users className="w-6 h-6 text-red-600" />
+              Client Assignment to Managers
+            </h2>
+            <div className="space-y-4 text-gray-700">
+              <ol className="list-decimal list-inside space-y-3">
+                <li>Navigate to Dashboard → User Management</li>
+                <li>Open the "Client Assignments" tab</li>
+                <li>In "Assign Client to Manager", select a manager</li>
+                <li>Select a client</li>
+                <li>Click "Assign"</li>
+              </ol>
+              <p className="text-sm text-gray-600">
+                To remove an assignment later, click the <strong>X</strong> next to the client badge in the manager's
+                assignment row.
+              </p>
             </div>
           </section>
 
@@ -172,10 +217,55 @@ export default function UsersHelpPage() {
             </div>
           </section>
 
+          {/* Bulk User Invites via Document Upload */}
+          <section className="bg-white rounded-lg shadow p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Mail className="w-6 h-6 text-red-600" />
+              Bulk User Invites via Document Upload
+            </h2>
+            <div className="space-y-4 text-gray-700">
+              <p>
+                You can invite multiple users at once by uploading a CSV document containing client bulk invitation
+                data. This is useful for onboarding multiple clients quickly.
+              </p>
+              <h3 className="font-semibold text-gray-900 mt-4">How to Upload Bulk Invitations</h3>
+              <ol className="list-decimal list-inside space-y-3">
+                <li>Navigate to Dashboard → Users</li>
+                <li>Look for the bulk upload or import option</li>
+                <li>Select a CSV file containing user invitation data</li>
+                <li>Review the imported users and verify the information</li>
+                <li>Confirm and send invitations</li>
+              </ol>
+              <h3 className="font-semibold text-gray-900 mt-4">CSV File Format</h3>
+              <p>
+                The CSV file should contain the following columns: email, first name, last name, and organization.
+                Ensure all required fields are populated before uploading.
+              </p>
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-900">
+                  <strong>Important:</strong> When users are invited via bulk upload, a dedicated folder is created that
+                  only the inviting administrator has access to. This folder is used to store documents related to those
+                  users. Other team members cannot access this folder unless you explicitly grant them permission.
+                </p>
+              </div>
+              <h3 className="font-semibold text-gray-900 mt-4">Private Folder Access</h3>
+              <ul className="list-disc list-inside space-y-2">
+                <li>The folder created during bulk upload is private to the inviting admin</li>
+                <li>You can share documents from this folder by downloading and re-uploading to shared folders</li>
+                <li>To grant other admins access, use folder permission settings</li>
+                <li>Client users invited via bulk upload receive their own access to their documents</li>
+              </ul>
+            </div>
+          </section>
+
           {/* Best Practices */}
           <section className="bg-white rounded-lg shadow p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Best Practices</h2>
             <ul className="space-y-3 text-gray-700">
+              <li className="flex gap-3">
+                <span className="text-red-600 font-bold">✓</span>
+                <span>Create clients before assigning managers</span>
+              </li>
               <li className="flex gap-3">
                 <span className="text-red-600 font-bold">✓</span>
                 <span>Regularly review user roles and permissions</span>

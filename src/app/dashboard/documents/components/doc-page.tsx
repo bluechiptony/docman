@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { Plus, FolderPlus, Search } from "lucide-react";
+import { Plus, FolderPlus, Search, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -133,6 +134,12 @@ export default function DocumentsPage() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h1 className="text-2xl font-semibold">{path.length === 0 ? "Documents" : path[path.length - 1].name}</h1>
         <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/help/user/documents" className="inline-flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              Help
+            </Link>
+          </Button>
           <Button onClick={handleNewFolder} variant="outline" size="sm">
             <FolderPlus className="mr-2 h-4 w-4" /> New Folder
           </Button>

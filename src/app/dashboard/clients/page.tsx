@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import FolderExshareDialog from "@/components/documents/FolderExshareDialog";
-import { Loader, Plus, Share2 } from "lucide-react";
+import { Loader, Plus, Share2, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { clientsApi, Client } from "@/api/clients";
 import { apiClient } from "@/api/client";
@@ -175,9 +176,17 @@ export default function ClientsPage() {
 
   return (
     <div className="flex flex-col gap-6 h-full p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Clients</h1>
-        <p className="text-sm text-muted-foreground">Create clients and assign folders</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Clients</h1>
+          <p className="text-sm text-muted-foreground">Create clients and assign folders</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/help/admin/clients" className="inline-flex items-center gap-2">
+            <HelpCircle className="h-4 w-4" />
+            Help
+          </Link>
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">

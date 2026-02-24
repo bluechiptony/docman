@@ -1,11 +1,12 @@
 "use client";
-import { useAuth } from "@/providers/auth.provider";
+import { useAuthUser } from "@/providers/auth.provider";
 import Link from "next/link";
-import { BookOpen, Users, Settings, FileText, Home } from "lucide-react";
+import { BookOpen, Users, Settings, FileText, Home, Building2 } from "lucide-react";
 
 export default function HelpPage() {
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   const isAdmin = user?.authentication?.role === "ADMINISTRATOR" || user?.authentication?.role === "SUPER_ADMIN";
+  const isManager = user?.authentication?.role === "MANAGER";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -55,20 +56,56 @@ export default function HelpPage() {
                 <div className="mt-4 text-[#0A3A5C] font-medium text-sm">View Guide →</div>
               </div>
             </Link>
-
-            {/* Settings Help Card */}
-            <Link href="/help/user/settings" className="group">
-              <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 p-6 h-full">
-                <div className="flex items-center gap-3 mb-3">
-                  <Settings className="w-6 h-6 text-[#0A3A5C]" />
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#0A3A5C]">Settings</h3>
-                </div>
-                <p className="text-gray-600">Manage your account, profile, and preferences</p>
-                <div className="mt-4 text-[#0A3A5C] font-medium text-sm">View Guide →</div>
-              </div>
-            </Link>
           </div>
         </div>
+
+        {/* Manager Help Section - Show for managers and admins */}
+        {(isManager || isAdmin) && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-amber-600" />
+              Manager Guides
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* My Clients Help Card */}
+              <Link href="/help/manager/clients" className="group">
+                <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-amber-200 p-6 h-full">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Building2 className="w-6 h-6 text-amber-600" />
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-amber-600">My Clients</h3>
+                  </div>
+                  <p className="text-gray-600">View and manage your assigned clients and their documents</p>
+                  <div className="mt-4 text-amber-600 font-medium text-sm">View Guide →</div>
+                </div>
+              </Link>
+
+              {/* Documents Help Card */}
+              <Link href="/help/user/documents" className="group">
+                <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-amber-200 p-6 h-full">
+                  <div className="flex items-center gap-3 mb-3">
+                    <FileText className="w-6 h-6 text-amber-600" />
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-amber-600">Documents</h3>
+                  </div>
+                  <p className="text-gray-600">Upload, organize, and manage client documents</p>
+                  <div className="mt-4 text-amber-600 font-medium text-sm">View Guide →</div>
+                </div>
+              </Link>
+
+              {/* Activity Log Help Card */}
+              <Link href="/help/manager/activity" className="group">
+                <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-amber-200 p-6 h-full">
+                  <div className="flex items-center gap-3 mb-3">
+                    <FileText className="w-6 h-6 text-amber-600" />
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-amber-600">Activity Log</h3>
+                  </div>
+                  <p className="text-gray-600">Track document activities and view client interactions</p>
+                  <div className="mt-4 text-amber-600 font-medium text-sm">View Guide →</div>
+                </div>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Admin Help Section - Only show for admins */}
         {isAdmin && (
@@ -99,6 +136,18 @@ export default function HelpPage() {
                     <h3 className="text-lg font-semibold text-gray-900 group-hover:text-red-600">System Settings</h3>
                   </div>
                   <p className="text-gray-600">Configure organization settings and document types</p>
+                  <div className="mt-4 text-red-600 font-medium text-sm">View Guide →</div>
+                </div>
+              </Link>
+
+              {/* Client Management Help Card */}
+              <Link href="/help/admin/clients" className="group">
+                <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-red-200 p-6 h-full">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Building2 className="w-6 h-6 text-red-600" />
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-red-600">Client Management</h3>
+                  </div>
+                  <p className="text-gray-600">Create clients, assign folders, and manage relationships</p>
                   <div className="mt-4 text-red-600 font-medium text-sm">View Guide →</div>
                 </div>
               </Link>
