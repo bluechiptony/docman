@@ -45,7 +45,7 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
                 <SelectValue placeholder="Select organization" />
               </SelectTrigger>
               <SelectContent>
-                {user.organizations.map((org) => (
+                {user.organizations.map((org: any) => (
                   <SelectItem key={org.id} value={org.id}>
                     {org.name}
                   </SelectItem>
