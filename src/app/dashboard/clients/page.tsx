@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader, Plus } from "lucide-react";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import FolderExshareDialog from "@/components/documents/FolderExshareDialog";
+import { Loader, Plus, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientsApi, Client } from "@/api/clients";
 import { apiClient } from "@/api/client";
@@ -37,6 +39,8 @@ export default function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([]);
   const [assigning, setAssigning] = useState(false);
+  const [clientShareTarget, setClientShareTarget] = useState<{ clientId: string; clientName: string } | null>(null);
+  const [clientShareOpen, setClientShareOpen] = useState(false);
 
   const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
 
@@ -216,36 +220,67 @@ export default function ClientsPage() {
               </tr>
             ) : (
               filteredClients.map((client) => (
-                <tr
-                  key={client.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                >
-                  <td className="px-4 py-3 font-medium text-gray-800">{client.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{client.folders.length ? client.folders.length : "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {!isManager && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenAssign(client);
-                        }}
-                      >
-                        Assign folders
-                      </Button>
-                    )}
-                  </td>
-                </tr>
+                <ContextMenu key={client.id}>
+                  <ContextMenuTrigger asChild>
+                    <tr
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                    >
+                      <td className="px-4 py-3 font-medium text-gray-800">{client.name}</td>
+                      <td className="px-4 py-3 text-gray-600">{client.folders.length ? client.folders.length : "—"}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {!isManager && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAssign(client);
+                            }}
+                          >
+                            Assign folders
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={() => {
+                        setClientShareTarget({ clientId: client.id, clientName: client.name });
+                        setClientShareOpen(true);
+                      }}
+                    >
+                      <Share2 className="w-4 h-4 mr-2" /> Share via Email (Exshare)
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      <FolderExshareDialog
+        open={clientShareOpen}
+        onClose={() => {
+          setClientShareOpen(false);
+          setClientShareTarget(null);
+        }}
+        organizationId={organizationId ?? ""}
+        target={
+          clientShareTarget
+            ? {
+                type: "client",
+                clientId: clientShareTarget.clientId,
+                clientName: clientShareTarget.clientName,
+              }
+            : null
+        }
+      />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md">

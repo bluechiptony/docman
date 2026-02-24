@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, LogOut, User, Building2, HelpCircle } from "lucide-react";
-import { useAuth } from "@/providers/auth.provider";
+import { useAuth, useAuthUser } from "@/providers/auth.provider";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -19,7 +19,8 @@ interface TopBarProps {
 }
 
 export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
-  const { user, logout, selectOrganization } = useAuth();
+  const { user, logout, selectOrganization } = useAuthUser();
+  const canSelectOrganization = user?.authentication?.role === "SUPER_ADMIN";
 
   const handleOrgChange = (orgId: string) => {
     selectOrganization(orgId);
@@ -36,7 +37,7 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
 
       <div className="flex items-center space-x-4">
         {/* Organization Selector */}
-        {user?.organizations && user.organizations.length > 1 && (
+        {canSelectOrganization && user?.organizations && user.organizations.length > 1 && (
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-gray-600" />
             <Select value={user.selectedOrganization?.id || ""} onValueChange={handleOrgChange}>
@@ -53,7 +54,6 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
             </Select>
           </div>
         )}
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">

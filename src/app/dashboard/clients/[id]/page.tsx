@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader, ArrowLeft, FolderOpen, Users } from "lucide-react";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import FolderExshareDialog from "@/components/documents/FolderExshareDialog";
+import { Loader, ArrowLeft, FolderOpen, Users, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientsApi, Client } from "@/api/clients";
 import { apiClient } from "@/api/client";
@@ -41,6 +43,8 @@ export default function ClientDetailPage() {
   const [folderSearch, setFolderSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [folderShareTarget, setFolderShareTarget] = useState<{ folderId: string; folderName: string } | null>(null);
+  const [folderShareOpen, setFolderShareOpen] = useState(false);
 
   const filteredFolders = useMemo(() => {
     if (!folderSearch.trim()) return folders;
@@ -175,14 +179,27 @@ export default function ClientDetailPage() {
                   </tr>
                 ) : (
                   filteredFolders.map((folder) => (
-                    <tr
-                      key={folder.id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/dashboard/documents?folderId=${folder.id}`)}
-                    >
-                      <td className="px-4 py-3 font-medium text-gray-800">{folder.name}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs font-mono">{folder.id}</td>
-                    </tr>
+                    <ContextMenu key={folder.id}>
+                      <ContextMenuTrigger asChild>
+                        <tr
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => router.push(`/dashboard/documents?folderId=${folder.id}`)}
+                        >
+                          <td className="px-4 py-3 font-medium text-gray-800">{folder.name}</td>
+                          <td className="px-4 py-3 text-gray-600 text-xs font-mono">{folder.id}</td>
+                        </tr>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem
+                          onClick={() => {
+                            setFolderShareTarget({ folderId: folder.id, folderName: folder.name });
+                            setFolderShareOpen(true);
+                          }}
+                        >
+                          <Share2 className="w-4 h-4 mr-2" /> Share via Email (Exshare)
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   ))
                 )}
               </tbody>
@@ -244,6 +261,24 @@ export default function ClientDetailPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <FolderExshareDialog
+        open={folderShareOpen}
+        onClose={() => {
+          setFolderShareOpen(false);
+          setFolderShareTarget(null);
+        }}
+        organizationId={client.organizationId}
+        target={
+          folderShareTarget
+            ? {
+                type: "folder",
+                folderId: folderShareTarget.folderId,
+                folderName: folderShareTarget.folderName,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

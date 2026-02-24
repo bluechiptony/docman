@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ShareDialog from "./ShareDialog";
 import ExshareDialog from "./ExshareDialog";
+import FolderExshareDialog from "@/components/documents/FolderExshareDialog";
 import DocumentDrawer from "./DocumentDrawer";
 import DocumentViewerModal from "./DocumentViewerModal";
 // (merged into the import above)
@@ -34,6 +35,7 @@ import { useAuth } from "@/providers/auth.provider";
 
 interface Props {
   items: DocumentItem[];
+  organizationId: string;
   onFolderOpen: (id: string, name: string) => void;
   onMove: (itemId: string, targetFolderId: string | null) => void;
   onDelete: (id: string) => void;
@@ -65,6 +67,7 @@ const getFileIcon = (fileName: string) => {
 
 export function DocumentsGrid({
   items,
+  organizationId,
   onFolderOpen,
   onMove,
   onDelete,
@@ -88,6 +91,8 @@ export function DocumentsGrid({
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [exshareOpen, setExshareOpen] = useState(false);
   const [exshareDocId, setExshareDocId] = useState<string | null>(null);
+  const [folderExshareOpen, setFolderExshareOpen] = useState(false);
+  const [folderExshareTarget, setFolderExshareTarget] = useState<{ folderId: string; folderName: string } | null>(null);
 
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -393,8 +398,14 @@ export function DocumentsGrid({
 
                     <ContextMenuItem
                       onClick={() => {
-                        setSelectedDocument(item.id);
-                        setShareOpen(true);
+                        if (item.type === "file") {
+                          setSelectedDocument(item.id);
+                          setShareOpen(true);
+                          return;
+                        }
+
+                        setFolderExshareTarget({ folderId: item.id, folderName: item.name });
+                        setFolderExshareOpen(true);
                       }}
                     >
                       <Share2 className="w-4 h-4 mr-2" /> Share
@@ -406,7 +417,8 @@ export function DocumentsGrid({
                           setExshareDocId(item.id);
                           setExshareOpen(true);
                         } else {
-                          toast.info("Exshare is available for documents only");
+                          setFolderExshareTarget({ folderId: item.id, folderName: item.name });
+                          setFolderExshareOpen(true);
                         }
                       }}
                     >
@@ -459,6 +471,24 @@ export function DocumentsGrid({
       <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} documentId={selectedDocument ?? ""} />
 
       <ExshareDialog open={exshareOpen} onClose={() => setExshareOpen(false)} documentId={exshareDocId} />
+
+      <FolderExshareDialog
+        open={folderExshareOpen}
+        onClose={() => {
+          setFolderExshareOpen(false);
+          setFolderExshareTarget(null);
+        }}
+        organizationId={organizationId}
+        target={
+          folderExshareTarget
+            ? {
+                type: "folder",
+                folderId: folderExshareTarget.folderId,
+                folderName: folderExshareTarget.folderName,
+              }
+            : null
+        }
+      />
 
       <DocumentDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} documentId={selectedDoc} />
 

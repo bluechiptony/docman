@@ -15,6 +15,7 @@ import { useAdminAccess } from "@/hooks/useAdminAccess";
 export default function ActivityPage() {
   const { user, selectOrganization } = useAuth();
   const { hasAccess, loading: checkingAccess } = useAdminAccess();
+  const canSelectOrganization = user?.authentication?.role === "SUPER_ADMIN";
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -115,13 +116,13 @@ export default function ActivityPage() {
           <p className="text-muted-foreground mt-1">Track all activities across your organization</p>
         </div>
 
-        {user.organizations && user.organizations.length > 1 && (
+        {canSelectOrganization && user.organizations && user.organizations.length > 1 && (
           <Select value={user.selectedOrganization?.id || ""} onValueChange={handleOrganizationChange}>
             <SelectTrigger className="w-[250px]">
               <SelectValue placeholder="Select organization" />
             </SelectTrigger>
             <SelectContent>
-              {user.organizations.map((org: { id: string; name: string; role: string }) => (
+              {user.organizations.map((org) => (
                 <SelectItem key={org.id} value={org.id}>
                   {org.name}
                 </SelectItem>

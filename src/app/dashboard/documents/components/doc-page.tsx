@@ -175,6 +175,7 @@ export default function DocumentsPage() {
           <div className="flex-1 overflow-y-auto">
             <DocumentsGrid
               items={filteredItems}
+              organizationId={selectedOrgId ?? ""}
               onFolderOpen={openFolder}
               onMove={moveItem}
               onDelete={handleDelete}

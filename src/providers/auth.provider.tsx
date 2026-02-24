@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
 import { apiClient } from "@/api/client";
+import { organizationsApi, type OrganizationOption } from "@/api/organizations";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
@@ -17,8 +18,8 @@ interface User {
     role: "SUPER_ADMIN" | "ADMINISTRATOR" | "MANAGER" | "EDITOR" | "VIEWER";
     active: boolean;
   };
-  organizations: { id: string; name: string; role: string }[];
-  selectedOrganization?: { id: string; name: string; role: string } | null;
+  organizations: OrganizationOption[];
+  selectedOrganization?: OrganizationOption | null;
 }
 
 type DecodedToken = {
@@ -36,6 +37,36 @@ const extractUserFromToken = (token: string): User | null => {
     console.error("Invalid token:", error);
     return null;
   }
+};
+
+const resolveSelectedOrganization = (
+  organizations: OrganizationOption[],
+  storedOrgId: string | null,
+): OrganizationOption | null => {
+  if (!organizations.length) {
+    localStorage.removeItem("selectedOrganizationId");
+    return null;
+  }
+
+  const selected = storedOrgId ? organizations.find((org) => org.id === storedOrgId) : undefined;
+  const active = selected ?? organizations[0];
+  localStorage.setItem("selectedOrganizationId", active.id);
+  return active;
+};
+
+const buildOrganizationsForUser = async (userData: User): Promise<OrganizationOption[]> => {
+  if (userData.authentication?.role === "SUPER_ADMIN") {
+    const organizations = await organizationsApi.getAllOrganizationsForAdmin();
+    console.log("Getting organization for super admin", JSON.stringify(organizations));
+
+    return organizations.map((org) => ({
+      id: org.id,
+      name: org.name,
+      role: "SUPER_ADMIN",
+    }));
+  }
+
+  return organizationsApi.getUserOrganizations();
 };
 
 interface AuthContextType {
@@ -61,29 +92,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    const storedOrgId = localStorage.getItem("selectedOrganizationId");
-    if (storedToken) {
-      const extractedUser = extractUserFromToken(storedToken);
-      if (extractedUser) {
-        // Set selectedOrganization
-        if (storedOrgId && extractedUser.organizations) {
-          const selected = extractedUser.organizations.find((org) => org.id === storedOrgId);
-          if (selected) {
-            extractedUser.selectedOrganization = selected;
-          } else if (extractedUser.organizations.length > 0) {
-            extractedUser.selectedOrganization = extractedUser.organizations[0];
-          }
-        } else if (extractedUser.organizations && extractedUser.organizations.length > 0) {
-          extractedUser.selectedOrganization = extractedUser.organizations[0];
-        }
-        setUser(extractedUser);
-        setToken(storedToken);
-      } else {
-        localStorage.removeItem("token");
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem("token");
+      const storedOrgId = localStorage.getItem("selectedOrganizationId");
+
+      if (!storedToken) {
+        setIsLoading(false);
+        return;
       }
-    }
-    setIsLoading(false);
+
+      const extractedUser = extractUserFromToken(storedToken);
+      if (!extractedUser) {
+        localStorage.removeItem("token");
+        setIsLoading(false);
+        return;
+      }
+
+      setToken(storedToken);
+
+      try {
+        const organizations = await buildOrganizationsForUser(extractedUser);
+        const selectedOrganization = resolveSelectedOrganization(organizations, storedOrgId);
+        setUser({
+          ...extractedUser,
+          organizations,
+          selectedOrganization,
+        });
+      } catch (error) {
+        console.error("Failed to load organizations:", error);
+        const fallbackOrganizations = extractedUser.organizations ?? [];
+        const selectedOrganization = resolveSelectedOrganization(fallbackOrganizations, storedOrgId);
+        setUser({
+          ...extractedUser,
+          organizations: fallbackOrganizations,
+          selectedOrganization,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -105,18 +154,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Failed to decode user from token");
       }
 
-      // Set selectedOrganization
-      if (decodedUser.organizations && decodedUser.organizations.length > 0) {
-        decodedUser.selectedOrganization = decodedUser.organizations[0];
-        localStorage.setItem("selectedOrganizationId", decodedUser.organizations[0].id);
-      }
-
       // Save token to localStorage
       localStorage.setItem("token", accessToken);
 
+      const storedOrgId = localStorage.getItem("selectedOrganizationId");
+      let organizations: OrganizationOption[] = decodedUser.organizations ?? [];
+
+      try {
+        organizations = await buildOrganizationsForUser(decodedUser);
+        // console.log("Orgsn:  ", organizations);
+        if (decodedUser.authentication?.role === "SUPER_ADMIN") {
+          // console.log("SUPER ADMIN ORGS: ", organizations);
+          decodedUser.organizations = organizations;
+        }
+      } catch (error) {
+        console.error("Failed to load organizations after login:", error);
+      }
+
+      const selectedOrganization = resolveSelectedOrganization(organizations, storedOrgId);
+
       // Update state
       setToken(accessToken);
-      setUser(decodedUser);
+      setUser({
+        ...decodedUser,
+        organizations,
+        selectedOrganization,
+      });
 
       toast.success("Login successful!");
 
@@ -152,7 +215,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedToken) {
       const extractedUser = extractUserFromToken(storedToken);
       if (extractedUser) {
-        setUser(extractedUser);
+        const storedOrgId = localStorage.getItem("selectedOrganizationId");
+
+        buildOrganizationsForUser(extractedUser)
+          .then((organizations) => {
+            const selectedOrganization = resolveSelectedOrganization(organizations, storedOrgId);
+            setUser({
+              ...extractedUser,
+              organizations,
+              selectedOrganization,
+            });
+          })
+          .catch((error) => {
+            console.error("Failed to refresh organizations:", error);
+            const fallbackOrganizations = extractedUser.organizations ?? [];
+            const selectedOrganization = resolveSelectedOrganization(fallbackOrganizations, storedOrgId);
+            setUser({
+              ...extractedUser,
+              organizations: fallbackOrganizations,
+              selectedOrganization,
+            });
+          });
         return;
       }
     }

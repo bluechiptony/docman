@@ -2,6 +2,7 @@
 import Sidebar from "@/components/layout/sidebar";
 import "../globals.css";
 import TopBar from "@/components/layout/topbar";
+import { DocumentTypeCheck } from "@/components/dashboard/DocumentTypeCheck";
 import { useEffect, useState } from "react";
 
 const metadata = {
@@ -50,6 +51,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="p-2">{children}</div>
         </main>
       </div>
+
+      {/* Document Type Check - Shows modal to admins if no document types exist */}
+      <DocumentTypeCheck />
     </>
   );
 }
