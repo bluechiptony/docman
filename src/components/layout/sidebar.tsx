@@ -24,7 +24,7 @@ import { useAuth } from "@/providers/auth.provider";
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { name: "Documents", icon: FileText, href: "/dashboard/documents" },
-  { name: "Users", icon: Users, href: "/dashboard/users", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
+  { name: "Users", icon: Users, href: "/dashboard/users", roles: ["ADMINISTRATOR", "SUPER_ADMIN", "MANAGER"] },
   { name: "Clients", icon: Briefcase, href: "/dashboard/clients", roles: ["ADMINISTRATOR", "SUPER_ADMIN", "MANAGER"] },
   { name: "Activity", icon: Activity, href: "/dashboard/activity", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
   { name: "Shares", icon: Share, href: "/dashboard/external-shares", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },

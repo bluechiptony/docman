@@ -12,13 +12,13 @@ import { CreateUserModal } from "./components/CreateUserModal";
 import { useUsers } from "./hooks/useUsers";
 import { Input } from "@/components/ui/input";
 import { useAuth, useAuthUser } from "@/providers/auth.provider";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
+import { useManagerAccess } from "@/hooks/useManagerAccess";
 
 export default function UsersPage() {
   const { users, loading, updateRole, deactivateUser, currentUser, canManageRoles } = useUsers();
   const { user } = useAuth();
   const { user: authUser } = useAuthUser();
-  const { hasAccess, loading: checkingAccess } = useAdminAccess();
+  const { hasAccess, loading: checkingAccess } = useManagerAccess();
   const [search, setSearch] = useState("");
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -36,7 +36,11 @@ export default function UsersPage() {
   }
 
   const isSuperAdmin =
-    authUser?.authentication?.role === "SUPER_ADMIN" || authUser?.authentication?.role === "ADMINISTRATOR";
+    authUser?.authentication?.role === "SUPER_ADMIN" ||
+    authUser?.authentication?.role === "ADMINISTRATOR" ||
+    authUser?.authentication?.role === "MANAGER";
+
+  const isManager = authUser?.authentication?.role === "MANAGER";
 
   const filtered = users.filter(
     (u) =>
@@ -60,45 +64,51 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
-          <TabsTrigger value="users" className="gap-2">
-            <Users className="w-4 h-4" />
-            Users
-          </TabsTrigger>
+      <Tabs defaultValue={isManager ? "invites" : "users"} className="w-full">
+        <TabsList className={`grid w-full max-w-2xl ${isManager ? "grid-cols-1" : "grid-cols-3"}`}>
+          {!isManager && (
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="w-4 h-4" />
+              Users
+            </TabsTrigger>
+          )}
           <TabsTrigger value="invites" className="gap-2">
             <Mail className="w-4 h-4" />
             Invitations
           </TabsTrigger>
-          <TabsTrigger value="clients" className="gap-2">
-            <Building2 className="w-4 h-4" />
-            Client Assignments
-          </TabsTrigger>
+          {!isManager && (
+            <TabsTrigger value="clients" className="gap-2">
+              <Building2 className="w-4 h-4" />
+              Client Assignments
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Users Tab */}
-        <TabsContent value="users" className="space-y-4">
-          <div className="flex justify-between items-center gap-4">
-            <Input
-              placeholder="Search users..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
-            <div className="flex items-center gap-4">
-              {isSuperAdmin && (
-                <Button onClick={() => setCreateUserOpen(true)} className="gap-2" size="sm">
-                  <Plus className="w-4 h-4" />
-                  Create User
-                </Button>
-              )}
-              {/* <p className="text-sm text-muted-foreground">
-                Logged in as <span className="font-medium">{user?.firstName}</span> ({user?.authentication?.role})
-              </p> */}
+        {!isManager && (
+          <TabsContent value="users" className="space-y-4">
+            <div className="flex justify-between items-center gap-4">
+              <Input
+                placeholder="Search users..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="max-w-sm"
+              />
+              <div className="flex items-center gap-4">
+                {isSuperAdmin && (
+                  <Button onClick={() => setCreateUserOpen(true)} className="gap-2" size="sm">
+                    <Plus className="w-4 h-4" />
+                    Create User
+                  </Button>
+                )}
+                {/* <p className="text-sm text-muted-foreground">
+                  Logged in as <span className="font-medium">{user?.firstName}</span> ({user?.authentication?.role})
+                </p> */}
+              </div>
             </div>
-          </div>
-          <UserTable users={filtered} isLoading={loading} />
-        </TabsContent>
+            <UserTable users={filtered} isLoading={loading} />
+          </TabsContent>
+        )}
 
         {/* Invites Tab */}
         <TabsContent value="invites">
@@ -106,9 +116,11 @@ export default function UsersPage() {
         </TabsContent>
 
         {/* Client Assignments Tab */}
-        <TabsContent value="clients">
-          <ClientListTab />
-        </TabsContent>
+        {!isManager && (
+          <TabsContent value="clients">
+            <ClientListTab />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Create User Modal */}

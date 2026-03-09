@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { apiClient } from "@/api/client";
 import { clientsApi } from "@/api/clients";
-import { useAuth } from "@/providers/auth.provider";
+import { useAuth, useAuthUser } from "@/providers/auth.provider";
 
 interface InviteUserModalProps {
   open: boolean;
@@ -31,6 +31,7 @@ interface Client {
 
 export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserModalProps) {
   const { user } = useAuth();
+  const { user: authUser } = useAuthUser();
   const [email, setEmail] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [clients, setClients] = useState<Client[]>([]);
@@ -57,13 +58,22 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
     console.log("🚀 fetchClients started with orgId:", orgId);
     setLoadingClients(true);
     try {
-      console.log("� Calling clientsApi.getByOrganization with:", orgId);
-      const clients = await clientsApi.getByOrganization(orgId);
-      console.log("✅ Clients returned from API:", clients);
-      console.log("✅ Clients type:", typeof clients);
-      console.log("✅ Clients is array:", Array.isArray(clients));
-      console.log("✅ Clients count:", Array.isArray(clients) ? clients.length : 0);
-      setClients(clients || []);
+      let clients: Client[] = [];
+
+      if (authUser?.authentication?.role === "MANAGER") {
+        // For managers, fetch only assigned clients
+        console.log("👤 User is MANAGER, fetching assigned clients for userId:", authUser.id);
+        const assignedResponse = await apiClient.get(`/user/${authUser.id}/clients`);
+        clients = assignedResponse.data || [];
+        console.log("✅ Assigned clients returned from API:", clients);
+      } else {
+        // For admins/super admins, fetch all clients in organization
+        console.log("👑 User is ADMIN/SUPER_ADMIN, fetching all clients for organization:", orgId);
+        clients = await clientsApi.getByOrganization(orgId);
+        console.log("✅ All clients returned from API:", clients);
+      }
+
+      setClients(clients);
       setSelectedClientId(undefined); // Reset client selection when org changes
     } catch (error: any) {
       console.error("❌ Failed to fetch clients:", error);
