@@ -70,10 +70,21 @@ export default function ModerationDashboard() {
   const [activeTab, setActiveTab] = useState("PENDING");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [managerFolderIds, setManagerFolderIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (user?.authentication?.role === "MANAGER") {
+      fetchManagerFolders();
+    } else {
+      fetchStats();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.authentication?.role !== "MANAGER" || managerFolderIds.size > 0) {
+      fetchStats();
+    }
+  }, [managerFolderIds, user]);
 
   useEffect(() => {
     fetchReviews(activeTab);
@@ -93,10 +104,54 @@ export default function ModerationDashboard() {
     }
   }, [selectedReview]);
 
+  const fetchManagerFolders = async () => {
+    try {
+      // Fetch manager's assigned clients
+      const assignedResponse = await apiClient.get(`/user/${user.id}/clients`);
+      const assignedClients = assignedResponse.data || [];
+
+      // Collect all folder IDs from assigned clients
+      const folderIds = new Set<string>();
+      assignedClients.forEach((client: any) => {
+        if (client.folders) {
+          client.folders.forEach((folder: any) => {
+            folderIds.add(folder.id);
+          });
+        }
+      });
+
+      setManagerFolderIds(folderIds);
+    } catch (error) {
+      console.error("Failed to fetch manager folders:", error);
+    }
+  };
+
   const fetchStats = async () => {
     try {
       const response = await apiClient.get("/documents/review/statistics");
-      setStats(response.data);
+      let statsData = response.data;
+
+      // For managers, filter stats based on their client folders
+      if (user?.authentication?.role === "MANAGER" && managerFolderIds.size > 0) {
+        // Since we can't easily filter stats server-side, we'll fetch all reviews and calculate stats
+        const allReviewsResponse = await apiClient.get("/documents/review/pending");
+        const allReviews = allReviewsResponse.data || [];
+
+        const managerReviews = allReviews.filter(
+          (review: DocumentReview) => review.document.folderId && managerFolderIds.has(review.document.folderId),
+        );
+
+        // Calculate stats from filtered reviews
+        const managerStats: ReviewStats = {};
+        managerReviews.forEach((review: DocumentReview) => {
+          const status = review.status as keyof ReviewStats;
+          managerStats[status] = (managerStats[status] || 0) + 1;
+        });
+
+        statsData = managerStats;
+      }
+
+      setStats(statsData);
     } catch (error) {
       console.error("Failed to fetch review statistics:", error);
     }
@@ -109,7 +164,17 @@ export default function ModerationDashboard() {
       const response = await apiClient.get(endpoint, {
         params: { page: 1, size: 20 },
       });
-      setReviews(response.data || []);
+
+      let fetchedReviews = response.data || [];
+
+      // Filter reviews for managers to only show documents from their client folders
+      if (user?.authentication?.role === "MANAGER" && managerFolderIds.size > 0) {
+        fetchedReviews = fetchedReviews.filter(
+          (review: DocumentReview) => review.document.folderId && managerFolderIds.has(review.document.folderId),
+        );
+      }
+
+      setReviews(fetchedReviews);
     } catch (error: unknown) {
       console.error("Failed to fetch reviews:", error);
       toast.error("Failed to load reviews");

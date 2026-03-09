@@ -28,7 +28,12 @@ const navItems = [
   { name: "Clients", icon: Briefcase, href: "/dashboard/clients", roles: ["ADMINISTRATOR", "SUPER_ADMIN", "MANAGER"] },
   { name: "Activity", icon: Activity, href: "/dashboard/activity", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
   { name: "Shares", icon: Share, href: "/dashboard/external-shares", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
-  { name: "Moderation", icon: ShieldCheck, href: "/dashboard/moderation", roles: ["ADMINISTRATOR"] },
+  {
+    name: "Moderation",
+    icon: ShieldCheck,
+    href: "/dashboard/moderation",
+    roles: ["ADMINISTRATOR", "SUPER_ADMIN", "MANAGER"],
+  },
   { name: "Settings", icon: Settings, href: "/dashboard/settings", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },
   { name: "Help", icon: HelpCircle, href: "/help" },
 ];
