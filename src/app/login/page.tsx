@@ -49,11 +49,11 @@ export default function LoginComponent() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-white text-5xl font-bold leading-tight">Find your sweet home</h2>
+          <h2 className="text-white text-5xl font-bold leading-tight">Manage your documents</h2>
           <p className="text-white text-lg opacity-90">
-            Schedule visit in just a few clicks
+            The all in one platform to manage your documents
             <br />
-            visits in just a few clicks
+            collaborate with your team
           </p>
           <div className="flex gap-2">
             <div className="h-2 w-8 bg-white rounded-full"></div>
