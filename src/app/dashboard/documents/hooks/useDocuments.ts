@@ -4,6 +4,8 @@ import { apiClient, uploadClient } from "@/api/client";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth, useAuthUser } from "@/providers/auth.provider";
+import { organizationsApi } from "@/api/organizations";
+import { getEffectiveUploadPolicy, validateFileAgainstPolicy } from "@/lib/upload-policy";
 
 export interface DocumentItem {
   id: string;
@@ -19,7 +21,14 @@ export interface DocumentItem {
   createdAt?: string;
   url?: string;
   reviews?: Array<{ id: string; status: string }>;
-  documentType?: { id: string; name: string };
+  documentType?: {
+    id: string;
+    name: string;
+    category?: {
+      id: string;
+      name: string;
+    } | null;
+  };
 }
 
 interface FolderPath {
@@ -253,6 +262,23 @@ export function useDocuments() {
 
       // Get current organization and folder IDs
       const currentOrganizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
+
+      if (!currentOrganizationId) {
+        toast.error("Organization context is required for upload");
+        return;
+      }
+
+      const organization = await organizationsApi.getOrganizationById(currentOrganizationId);
+      const policy = getEffectiveUploadPolicy({
+        maxUploadSizeBytes: organization.maxUploadSizeBytes,
+        allowedUploadExtensions: organization.allowedUploadExtensions,
+      });
+
+      const invalidFile = files.find((file) => !validateFileAgainstPolicy(file, policy).valid);
+      if (invalidFile) {
+        toast.error("One or more files are blocked by upload policy");
+        return;
+      }
 
       await Promise.all(
         files.map(async (file) => {

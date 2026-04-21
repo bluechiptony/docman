@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { Upload, FolderPlus, UserPlus, FileBarChart, PlusCircle, FileIcon, X } from "lucide-react";
@@ -12,6 +12,8 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/providers/auth.provider";
 import { InviteUserModal } from "@/app/dashboard/users/components/InviteUserModal";
 import CreateDocumentTypeModal from "@/app/dashboard/settings/document-types/components/CreateDocumentTypeModal";
+import { organizationsApi } from "@/api/organizations";
+import { getEffectiveUploadPolicy, validateFileAgainstPolicy, type UploadPolicy } from "@/lib/upload-policy";
 
 export function QuickActions() {
   const [openModal, setOpenModal] = useState<string | null>(null);
@@ -20,16 +22,66 @@ export function QuickActions() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadPolicy, setUploadPolicy] = useState<UploadPolicy>(getEffectiveUploadPolicy());
   const dropRef = useRef<HTMLDivElement | null>(null);
   const { user } = useAuth();
   const isAdmin = user?.authentication?.role === "ADMINISTRATOR" || user?.authentication?.role === "SUPER_ADMIN";
+  const isManagerOrUser =
+    user?.authentication?.role === "MANAGER" ||
+    user?.authentication?.role === "EDITOR" ||
+    user?.authentication?.role === "VIEWER";
+  const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
+
+  useEffect(() => {
+    if (!organizationId) {
+      return;
+    }
+
+    organizationsApi
+      .getOrganizationById(organizationId)
+      .then((organization) => {
+        setUploadPolicy(
+          getEffectiveUploadPolicy({
+            maxUploadSizeBytes: organization.maxUploadSizeBytes,
+            allowedUploadExtensions: organization.allowedUploadExtensions,
+          }),
+        );
+      })
+      .catch(() => {
+        setUploadPolicy(getEffectiveUploadPolicy());
+      });
+  }, [organizationId]);
 
   const actions = [
     { id: "upload", name: "Upload Document", icon: Upload, color: "bg-blue-100 text-blue-700" },
-    { id: "folder", name: "Create Folder", icon: FolderPlus, color: "bg-green-100 text-green-700" },
-    { id: "invite", name: "Invite User", icon: UserPlus, color: "bg-amber-100 text-amber-700" },
-    { id: "report", name: "Generate Report", icon: FileBarChart, color: "bg-purple-100 text-purple-700" },
-    { id: "newType", name: "Add New Type", icon: PlusCircle, color: "bg-pink-100 text-pink-700" },
+    {
+      id: "folder",
+      name: "Create Folder",
+      icon: FolderPlus,
+      color: "bg-green-100 text-green-700",
+      hidden: isManagerOrUser,
+    },
+    {
+      id: "invite",
+      name: "Invite User",
+      icon: UserPlus,
+      color: "bg-amber-100 text-amber-700",
+      hidden: isManagerOrUser,
+    },
+    {
+      id: "report",
+      name: "Generate Report",
+      icon: FileBarChart,
+      color: "bg-purple-100 text-purple-700",
+      hidden: isManagerOrUser,
+    },
+    {
+      id: "newType",
+      name: "Add New Type",
+      icon: PlusCircle,
+      color: "bg-pink-100 text-pink-700",
+      hidden: isManagerOrUser,
+    },
   ];
 
   const open = (id: string) => {
@@ -50,14 +102,28 @@ export function QuickActions() {
 
   // Handle file selection
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files || []);
+    const selected = Array.from(event.target.files || []).filter((file) => {
+      const validation = validateFileAgainstPolicy(file, uploadPolicy);
+      if (!validation.valid) {
+        setUploadError("One or more files are not allowed by upload policy");
+        return false;
+      }
+      return true;
+    });
     setFiles((prev) => [...prev, ...selected]);
   };
 
   // Handle drag & drop
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const droppedFiles = Array.from(event.dataTransfer.files);
+    const droppedFiles = Array.from(event.dataTransfer.files).filter((file) => {
+      const validation = validateFileAgainstPolicy(file, uploadPolicy);
+      if (!validation.valid) {
+        setUploadError("One or more files are not allowed by upload policy");
+        return false;
+      }
+      return true;
+    });
     setFiles((prev) => [...prev, ...droppedFiles]);
   };
 
@@ -107,7 +173,7 @@ export function QuickActions() {
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {actions
-          .filter((action) => (action.id === "invite" || action.id === "newType" ? isAdmin : true))
+          .filter((action) => !action.hidden)
           .map((action) => {
             const Icon = action.icon;
             return (

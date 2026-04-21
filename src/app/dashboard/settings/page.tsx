@@ -11,6 +11,7 @@ import StorageSettings from "@/components/settings/StorageSettings";
 import UserAccessSettings from "@/components/settings/UserAccessSettings";
 import AppearanceSettings from "@/components/settings/AppearanceSettings";
 import DocumentTypesSettings from "@/components/settings/DocumentTypesSettings";
+import DocumentCategoriesSettings from "@/components/settings/DocumentCategoriesSettings";
 import OrganizationsSettings from "@/components/settings/OrganizationsSettings";
 import FolderSettingsPage from "./folder/page";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
@@ -53,6 +54,7 @@ export default function SettingsPage() {
 
               {/* <TabsTrigger value="appearance">Appearance</TabsTrigger> */}
               <TabsTrigger value="folder">Folder</TabsTrigger>
+              <TabsTrigger value="document-categories">Categories</TabsTrigger>
               <TabsTrigger value="document-types">Document Types</TabsTrigger>
             </TabsList>
 
@@ -77,6 +79,9 @@ export default function SettingsPage() {
             </TabsContent>
             <TabsContent value="folder">
               <FolderSettingsPage />
+            </TabsContent>
+            <TabsContent value="document-categories">
+              <DocumentCategoriesSettings />
             </TabsContent>
             <TabsContent value="document-types">
               <DocumentTypesSettings />

@@ -13,6 +13,8 @@ import { getDocumentTypes, searchDocumentTypes, type DocumentType } from "@/lib/
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { organizationsApi } from "@/api/organizations";
+import { getEffectiveUploadPolicy, validateFileAgainstPolicy, type UploadPolicy } from "@/lib/upload-policy";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -38,6 +40,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
   const [docTypeQuery, setDocTypeQuery] = useState("");
   const [docTypeOpen, setDocTypeOpen] = useState(false);
   const [docTypeResults, setDocTypeResults] = useState<DocumentType[]>([]);
+  const [uploadPolicy, setUploadPolicy] = useState<UploadPolicy>(getEffectiveUploadPolicy());
   const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id ?? null;
 
   useEffect(() => {
@@ -80,6 +83,37 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
     };
   }, [docTypeQuery, isOpen, mode, organizationId]);
 
+  useEffect(() => {
+    if (!isOpen || !organizationId) {
+      return;
+    }
+
+    let cancelled = false;
+    organizationsApi
+      .getOrganizationById(organizationId)
+      .then((organization) => {
+        if (cancelled) {
+          return;
+        }
+
+        setUploadPolicy(
+          getEffectiveUploadPolicy({
+            maxUploadSizeBytes: organization.maxUploadSizeBytes,
+            allowedUploadExtensions: organization.allowedUploadExtensions,
+          }),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUploadPolicy(getEffectiveUploadPolicy());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, organizationId]);
+
   const filteredDocTypes = docTypeQuery
     ? docTypes.filter((dt) => {
         const q = docTypeQuery.toLowerCase().trim();
@@ -91,17 +125,28 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
   const addFiles = useCallback(
     (newFiles: FileList | File[]) => {
       const incoming = Array.from(newFiles);
+
+      const acceptedFiles = incoming.filter((file) => {
+        const validation = validateFileAgainstPolicy(file, uploadPolicy);
+        if (!validation.valid) {
+          toast.error("This file is not allowed by upload policy");
+          return false;
+        }
+
+        return true;
+      });
+
       setFiles((prev) => {
         if (mode === "typed") {
           // In typed mode, enforce single file: replace with first new file
-          return incoming.length ? [incoming[0]] : prev.slice(0, 1);
+          return acceptedFiles.length ? [acceptedFiles[0]] : prev.slice(0, 1);
         }
         const existingNames = new Set(prev.map((f) => f.name));
-        const unique = incoming.filter((f) => !existingNames.has(f.name));
+        const unique = acceptedFiles.filter((f) => !existingNames.has(f.name));
         return [...prev, ...unique];
       });
     },
-    [mode]
+    [mode, uploadPolicy],
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +204,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
             },
             mode === "typed"
               ? { documentTypeId: selectedDocTypeId || undefined, targetFolderId: currentFolderId ?? null }
-              : { targetFolderId: currentFolderId ?? null }
+              : { targetFolderId: currentFolderId ?? null },
           );
 
           const uploadedUrl = `https://example-bucket.com/${file.name}`; // or real response
@@ -169,7 +214,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
           console.error(err);
           toast.error(`Failed to upload ${file.name}`, { id: toastId });
         }
-      })
+      }),
     );
 
     setIsUploading(false);
@@ -278,7 +323,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
             onDragLeave={() => setIsDragging(false)}
             className={clsx(
               "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
-              isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400"
+              isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400",
             )}
           >
             <UploadCloud className="mx-auto mb-2 text-gray-400" size={36} />

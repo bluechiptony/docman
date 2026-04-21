@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, FileType } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Edit, Trash2, FileType, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   getDocumentTypes,
@@ -18,30 +19,32 @@ import {
   type CreateDocumentTypeDto,
   type UpdateDocumentTypeDto,
 } from "@/lib/document-types.service";
+import { documentCategoriesApi, type DocumentCategory } from "@/api/document-categories";
 import { useAuth } from "@/providers/auth.provider";
 
 type FormData = {
   name: string;
   description: string;
+  categoryId: string | null;
+  isCategoryRequired: boolean;
 };
 
 export default function DocumentTypesSettings() {
   const { user } = useAuth();
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<DocumentType | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
+    categoryId: null,
+    isCategoryRequired: false,
   });
 
   const organizationId = user?.selectedOrganization?.id;
   const userId = user?.id;
-
-  console.log({
-    user,
-  });
 
   // Guard: user must be authenticated
   if (!user || !userId || !organizationId) {
@@ -54,19 +57,23 @@ export default function DocumentTypesSettings() {
 
   useEffect(() => {
     if (organizationId) {
-      fetchDocumentTypes();
+      fetchData();
     }
   }, [organizationId]);
 
-  const fetchDocumentTypes = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       if (!organizationId) return;
-      const types = await getDocumentTypes(organizationId);
+      const [types, cats] = await Promise.all([
+        getDocumentTypes(organizationId),
+        documentCategoriesApi.getByOrganization(organizationId),
+      ]);
       setDocumentTypes(types as unknown as DocumentType[]);
+      setCategories(cats);
     } catch (error) {
-      console.error("Error fetching document types:", error);
-      toast.error("Failed to load document types");
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load document types or categories");
     } finally {
       setLoading(false);
     }
@@ -75,15 +82,23 @@ export default function DocumentTypesSettings() {
   const handleOpenDialog = (type?: DocumentType) => {
     if (type) {
       setEditingType(type);
+      // Find category assignment if exists
+      const categoryId = (type as any).documentCategoryAssignment?.documentCategoryId || null;
+      const categoryRequired = (type as any).documentCategoryAssignment?.isRequired || false;
+
       setFormData({
         name: type.name,
         description: type.description || "",
+        categoryId,
+        isCategoryRequired: categoryRequired,
       });
     } else {
       setEditingType(null);
       setFormData({
         name: "",
         description: "",
+        categoryId: null,
+        isCategoryRequired: false,
       });
     }
     setIsDialogOpen(true);
@@ -95,6 +110,8 @@ export default function DocumentTypesSettings() {
     setFormData({
       name: "",
       description: "",
+      categoryId: null,
+      isCategoryRequired: false,
     });
   };
 
@@ -115,25 +132,43 @@ export default function DocumentTypesSettings() {
     try {
       if (editingType) {
         // Update existing
-        await updateDocumentType(editingType.id, {
+        const updatePayload: any = {
           name: formData.name,
           description: formData.description || undefined,
           organizationId,
-        });
+        };
+
+        // Handle category assignment or clearing
+        if (formData.categoryId === null) {
+          updatePayload.clearDocumentCategory = true;
+        } else {
+          updatePayload.documentCategoryId = formData.categoryId;
+          updatePayload.isCategoryRequired = formData.isCategoryRequired;
+        }
+
+        await updateDocumentType(editingType.id, updatePayload);
         toast.success("Document type updated successfully");
       } else {
         // Create new
-        await createDocumentType({
+        const createPayload: any = {
           name: formData.name,
           description: formData.description || undefined,
           organizationId,
           createdById: userId,
-        });
+        };
+
+        // Include category if selected
+        if (formData.categoryId) {
+          createPayload.documentCategoryId = formData.categoryId;
+          createPayload.isCategoryRequired = formData.isCategoryRequired;
+        }
+
+        await createDocumentType(createPayload);
         toast.success("Document type created successfully");
       }
 
       handleCloseDialog();
-      fetchDocumentTypes();
+      fetchData();
     } catch (error: any) {
       console.error("Error saving document type:", error);
       const message = error.response?.data?.message || "Failed to save document type";
@@ -149,7 +184,7 @@ export default function DocumentTypesSettings() {
     try {
       await deleteDocumentType(id);
       toast.success("Document type deleted successfully");
-      fetchDocumentTypes();
+      fetchData();
     } catch (error: any) {
       console.error("Error deleting document type:", error);
       const message = error.response?.data?.message || "Failed to delete document type";
@@ -195,37 +230,42 @@ export default function DocumentTypesSettings() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Documents</TableHead>
                 <TableHead>Created By</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documentTypes.map((type) => (
-                <TableRow key={type.id}>
-                  <TableCell className="font-medium">{type.name}</TableCell>
-                  <TableCell className="text-gray-600">{type.description || "—"}</TableCell>
-                  <TableCell>{type._count.documents}</TableCell>
-                  <TableCell className="text-gray-600">
-                    {type.createdBy.firstName} {type.createdBy.lastName}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(type)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(type.id)}
-                        disabled={type._count.documents > 0}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {documentTypes.map((type) => {
+                const categoryName = (type as any).documentCategoryAssignment?.documentCategory?.name;
+                return (
+                  <TableRow key={type.id}>
+                    <TableCell className="font-medium">{type.name}</TableCell>
+                    <TableCell className="text-gray-600">{type.description || "—"}</TableCell>
+                    <TableCell className="text-gray-600">{categoryName || "—"}</TableCell>
+                    <TableCell>{type._count.documents}</TableCell>
+                    <TableCell className="text-gray-600">
+                      {type.createdBy.firstName} {type.createdBy.lastName}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(type)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(type.id)}
+                          disabled={type._count.documents > 0}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -258,6 +298,51 @@ export default function DocumentTypesSettings() {
                 placeholder="Describe this document type..."
                 rows={3}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={formData.categoryId || ""}
+                  onValueChange={(value) => setFormData({ ...formData, categoryId: value || null })}
+                >
+                  <SelectTrigger id="category" className="flex-1">
+                    <SelectValue placeholder="Select a category (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.categoryId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, categoryId: null, isCategoryRequired: false })}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              {formData.categoryId && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="required"
+                    checked={formData.isCategoryRequired}
+                    onChange={(e) => setFormData({ ...formData, isCategoryRequired: e.target.checked })}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="required" className="font-normal cursor-pointer">
+                    Mark as required for this category
+                  </Label>
+                </div>
+              )}
             </div>
 
             <DialogFooter>

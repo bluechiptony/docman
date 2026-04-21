@@ -47,6 +47,9 @@ const RANGE_OPTIONS = [7, 14, 30];
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const isAdminOrSupport =
+    user?.authentication?.role === "SUPER_ADMIN" || user?.authentication?.role === "ADMINISTRATOR";
+
   const [stats, setStats] = useState({
     documents: 0,
     users: 0,
@@ -89,7 +92,7 @@ export default function DashboardPage() {
           overview.uploadsPerDay.map((row) => ({
             day: formatDay(row.date),
             uploads: row.uploads,
-          }))
+          })),
         );
 
         setDocTypeData(assignColors(overview.documentTypeBreakdown));
@@ -137,7 +140,7 @@ export default function DashboardPage() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold mb-4">Dashboard Overview</h1>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm text-gray-600">Upload range:</span>
         <div className="flex gap-2">
           {RANGE_OPTIONS.map((days) => (
@@ -152,7 +155,7 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -166,16 +169,20 @@ export default function DashboardPage() {
           value={stats.folders.toLocaleString()}
           icon={<FolderPlus className="text-indigo-500" />}
         />
-        <StatCard
-          title="Active Users"
-          value={stats.users.toLocaleString()}
-          icon={<Users className="text-green-500" />}
-        />
-        <StatCard
-          title="Storage Used"
-          value={`${stats.storageUsedGb} GB`}
-          icon={<HardDrive className="text-amber-500" />}
-        />
+        {isAdminOrSupport && (
+          <StatCard
+            title="Active Users"
+            value={stats.users.toLocaleString()}
+            icon={<Users className="text-green-500" />}
+          />
+        )}
+        {isAdminOrSupport && (
+          <StatCard
+            title="Storage Used"
+            value={`${stats.storageUsedGb} GB`}
+            icon={<HardDrive className="text-amber-500" />}
+          />
+        )}
         <StatCard title="Recent Uploads" value={stats.recentUploads} icon={<Clock className="text-purple-500" />} />
       </div>
 

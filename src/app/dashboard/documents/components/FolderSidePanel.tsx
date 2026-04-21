@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle2, FileText, XCircle } from "lucide-react";
+import { CheckCircle2, FileText, XCircle, ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DocumentItem } from "../hooks/useDocuments";
 import { getFolderRequirementStatus, type FolderRequirementStatus } from "@/lib/folders.service";
@@ -41,6 +41,7 @@ export function FolderSidePanel({
 }: FolderSidePanelProps) {
   const docs = documents || [];
   const [req, setReq] = useState<FolderRequirementStatus | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string | null>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -51,7 +52,13 @@ export function FolderSidePanel({
       }
       try {
         const status = await getFolderRequirementStatus(folderId);
-        if (active) setReq(status);
+        if (active) {
+          setReq(status);
+          // Expand all categories by default
+          if (status.categories) {
+            setExpandedCategories(new Set(status.categories.map((c) => c.id)));
+          }
+        }
       } catch {
         if (active) setReq(null);
       }
@@ -60,6 +67,16 @@ export function FolderSidePanel({
       active = false;
     };
   }, [folderId]);
+
+  const toggleCategory = (categoryId: string | null) => {
+    const newSet = new Set(expandedCategories);
+    if (newSet.has(categoryId)) {
+      newSet.delete(categoryId);
+    } else {
+      newSet.add(categoryId);
+    }
+    setExpandedCategories(newSet);
+  };
 
   return (
     <div className="w-full sm:w-80 lg:w-96 border-l bg-white flex flex-col">
@@ -118,26 +135,69 @@ export function FolderSidePanel({
           </div>
           {req.applicable && (
             <ScrollArea className="max-h-48">
-              <ul className="px-3 pb-3 space-y-2">
-                {[
-                  ...(req.presentTypes || []).map((t) => ({ ...t, present: true })),
-                  ...(req.remainingTypes || []).map((t) => ({ ...t, present: false })),
-                ].map((t) => (
-                  <li
-                    key={`${t.id}-${t.present ? "present" : "missing"}`}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    <span className="text-sm">
-                      {t.name} <span className="text-muted-foreground">-</span>
-                    </span>
-                    {t.present ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-amber-600" />
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <div className="px-3 pb-3 space-y-3">
+                {req.categories && req.categories.length > 0 ? (
+                  // Render categories with collapsible sections
+                  req.categories.map((category) => (
+                    <div key={category.id || "uncategorized"} className="border rounded-md">
+                      <button
+                        onClick={() => toggleCategory(category.id)}
+                        className="w-full flex items-center justify-between p-2 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center gap-2 font-medium text-sm">
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform ${
+                              expandedCategories.has(category.id) ? "" : "-rotate-90"
+                            }`}
+                          />
+                          {category.name}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {category.presentCount}/{category.totalRequired}
+                        </span>
+                      </button>
+                      {expandedCategories.has(category.id) && (
+                        <div className="border-t px-2 py-2 bg-gray-50 space-y-1">
+                          {category.presentTypes.map((t) => (
+                            <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate">{t.name}</span>
+                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                            </div>
+                          ))}
+                          {category.remainingTypes.map((t) => (
+                            <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate">{t.name}</span>
+                              <XCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  // Fallback to flat list if no categories available
+                  <ul className="space-y-2">
+                    {[
+                      ...(req.presentTypes || []).map((t) => ({ ...t, present: true })),
+                      ...(req.remainingTypes || []).map((t) => ({ ...t, present: false })),
+                    ].map((t) => (
+                      <li
+                        key={`${t.id}-${t.present ? "present" : "missing"}`}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="text-sm">
+                          {t.name} <span className="text-muted-foreground">-</span>
+                        </span>
+                        {t.present ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-amber-600" />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </ScrollArea>
           )}
         </div>

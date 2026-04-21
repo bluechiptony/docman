@@ -8,6 +8,7 @@ import { Plus, FolderPlus, Search, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Toaster, toast } from "sonner";
 import { DocumentsGrid } from "./DocumentsGrid";
 import FolderSidePanel from "./FolderSidePanel";
@@ -17,6 +18,13 @@ import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { useDocuments } from "../hooks/useDocuments";
 import { clientsApi, type Client } from "@/api/clients";
 import { useAuthUser } from "@/providers/auth.provider";
+import { apiClient } from "@/api/client";
+
+type DocumentCategoryGroup = {
+  id: string;
+  name: string;
+  documentCount: number;
+};
 
 export default function DocumentsPage() {
   const router = useRouter();
@@ -26,23 +34,19 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("all");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
+  const [categorySort, setCategorySort] = useState<"name" | "count">("count");
+  const [currentFolder, setCurrentFolder] = useState<{
+    folderType?: string;
+    folderRequiredDocumentsId?: string;
+  } | null>(null);
   const searchParams = useSearchParams();
   const folderId = searchParams.get("folderId");
 
-  const {
-    path,
-    visibleItems,
-    documents,
-    createFolder,
-    openFolder,
-    navigateToFolder,
-    goBackTo,
-    moveItem,
-    handleUpload,
-    addDocument,
-  } = useDocuments();
+  const { path, visibleItems, createFolder, openFolder, navigateToFolder, goBackTo, moveItem, addDocument } =
+    useDocuments();
   const currentFolderId = path[path.length - 1]?.id ?? null;
-  const parentFolderId = path.length > 0 ? path[path.length - 1].id : undefined;
+  const parentFolderId = path[path.length - 1]?.id ?? undefined;
   const selectedOrgId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
 
   useEffect(() => {
@@ -94,11 +98,12 @@ export default function DocumentsPage() {
     goBackTo(null);
   }, [selectedClientId, currentFolderId, selectedClientFolderIds, goBackTo]);
 
-  // console.log(parentFolderId);
-  // console.log(path);
+  useEffect(() => {
+    setSelectedCategoryId("all");
+  }, [currentFolderId]);
 
   /** 🔴 Handle Delete */
-  const handleDelete = (id: string) => {
+  const handleDelete = (_id: string) => {
     toast.warning("Item deleted");
   };
 
@@ -121,10 +126,92 @@ export default function DocumentsPage() {
     return visibleItems;
   }, [currentFolderId, selectedClientId, selectedClientFolderIds, visibleItems]);
 
-  /** 🔍 Filter documents by name */
-  const filteredItems = clientFilteredItems.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  const isApplicantFolder = currentFolder?.folderType === "APPLICANT";
+
+  // Fetch current folder details when currentFolderId changes
+  useEffect(() => {
+    if (!currentFolderId) {
+      setCurrentFolder(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await apiClient.get(`/folders/${currentFolderId}/requirements/status`);
+        if (!cancelled) {
+          setCurrentFolder({
+            folderType: response.data?.folderType,
+            folderRequiredDocumentsId: response.data?.listId ?? undefined,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCurrentFolder(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentFolderId]);
+
+  const categoryGroups = useMemo<DocumentCategoryGroup[]>(() => {
+    const groups = new Map<string, DocumentCategoryGroup>();
+
+    clientFilteredItems.forEach((item) => {
+      if (item.type !== "file") {
+        return;
+      }
+
+      const categoryId = item.documentType?.category?.id ?? "uncategorized";
+      const categoryName = item.documentType?.category?.name ?? "Uncategorized";
+      const existing = groups.get(categoryId) ?? {
+        id: categoryId,
+        name: categoryName,
+        documentCount: 0,
+      };
+
+      existing.documentCount += 1;
+      groups.set(categoryId, existing);
+    });
+
+    return Array.from(groups.values());
+  }, [clientFilteredItems]);
+
+  const categoryFilterOptions = useMemo(
+    () => categoryGroups.map((group) => ({ id: group.id, name: group.name })),
+    [categoryGroups],
   );
+
+  const sortedCategoryGroups = useMemo(() => {
+    return [...categoryGroups].sort((left, right) => {
+      if (categorySort === "name") {
+        return left.name.localeCompare(right.name);
+      }
+
+      if (right.documentCount !== left.documentCount) {
+        return right.documentCount - left.documentCount;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
+  }, [categoryGroups, categorySort]);
+
+  /** 🔍 Filter by name and category (files only) */
+  const filteredItems = clientFilteredItems.filter((item) => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (!isApplicantFolder || selectedCategoryId === "all" || item.type === "folder") {
+      return true;
+    }
+
+    const categoryId = item.documentType?.category?.id ?? "uncategorized";
+    return categoryId === selectedCategoryId;
+  });
 
   return (
     <div className="flex flex-col gap-6 h-full">
@@ -176,6 +263,96 @@ export default function DocumentsPage() {
         </Select>
       </div>
 
+      {isApplicantFolder && (
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm font-medium text-gray-700">Document Categories</div>
+            <div className="flex flex-col gap-3 md:flex-row">
+              <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                <SelectTrigger className="w-full md:w-72">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categoryFilterOptions.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={categorySort} onValueChange={(value) => setCategorySort(value as "name" | "count")}>
+                <SelectTrigger className="w-full md:w-56">
+                  <SelectValue placeholder="Sort categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="count">Sort by document count</SelectItem>
+                  <SelectItem value="name">Sort by name</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {sortedCategoryGroups.length > 0 && (
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 xl:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryId("all")}
+                className={`rounded-lg border p-3 text-left transition ${
+                  selectedCategoryId === "all"
+                    ? "border-blue-500 bg-blue-50 shadow-sm"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-gray-900">All categories</div>
+                  <Badge variant="outline" className="border-gray-300 text-gray-700">
+                    {categoryGroups.length}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Show every document in this applicant folder</p>
+              </button>
+
+              {sortedCategoryGroups.map((group) => {
+                const categoryId = group.id;
+                return (
+                  <button
+                    key={categoryId}
+                    type="button"
+                    onClick={() => setSelectedCategoryId(categoryId)}
+                    className={`rounded-lg border p-3 text-left transition ${
+                      selectedCategoryId === categoryId
+                        ? "border-blue-500 bg-blue-50 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{group.name}</div>
+                        <p className="mt-1 text-xs text-muted-foreground">{group.documentCount} uploaded documents</p>
+                      </div>
+                      <Badge variant="outline" className="border-gray-300 text-gray-700">
+                        {group.documentCount}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Filter this folder to documents in this category
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {sortedCategoryGroups.length === 0 && (
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-muted-foreground">
+              No document categories found for the uploaded documents in this folder.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main area with side panel */}
       <div className="flex-1 overflow-hidden">
         <div className="flex h-full">
@@ -200,13 +377,12 @@ export default function DocumentsPage() {
           {/* Side panel shows when inside a folder (not root) */}
           {currentFolderId &&
             (() => {
-              const folderItem = documents.find((d) => d.id === currentFolderId && d.type === "folder");
               return (
                 <FolderSidePanel
                   folderId={currentFolderId ?? undefined}
                   folderName={path[path.length - 1]?.name}
-                  folderType={folderItem?.folderType}
-                  folderRequiredDocumentsId={folderItem?.folderRequiredDocumentsId}
+                  folderType={currentFolder?.folderType}
+                  folderRequiredDocumentsId={currentFolder?.folderRequiredDocumentsId}
                   documents={visibleItems.filter((i) => i.type === "file")}
                 />
               );
@@ -227,7 +403,7 @@ export default function DocumentsPage() {
       {/* Create Folder Modal */}
       <CreateFolderModal
         isOpen={isCreateFolderOpen}
-        parentFolderId={parentFolderId ? parentFolderId : undefined}
+        parentFolderId={parentFolderId}
         onClose={() => setIsCreateFolderOpen(false)}
         onCreateFolder={(folderName, parentFolderId, type, folderRequiredDocumentsId) => {
           createFolder(folderName, parentFolderId, type, folderRequiredDocumentsId);

@@ -1,5 +1,15 @@
 import { apiClient, apiRequest } from "@/api/client";
 
+export type RequirementCategoryGroup = {
+  id: string | null;
+  name: string;
+  totalRequired: number;
+  presentCount: number;
+  remainingCount: number;
+  presentTypes: Array<{ id: string; name: string }>;
+  remainingTypes: Array<{ id: string; name: string }>;
+};
+
 export type FolderRequirementStatus = {
   folderId: string;
   folderType?: string;
@@ -11,6 +21,7 @@ export type FolderRequirementStatus = {
   completionPercent: number;
   presentTypes: Array<{ id: string; name: string }>;
   remainingTypes: Array<{ id: string; name: string }>;
+  categories?: RequirementCategoryGroup[];
 };
 
 export async function getFolderRequirementStatus(folderId: string) {

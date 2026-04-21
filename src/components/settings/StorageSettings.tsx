@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -9,15 +9,26 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartTooltip } from "recharts";
 import { Cloud, HardDrive } from "lucide-react";
+import { useAuth } from "@/providers/auth.provider";
+import { organizationsApi } from "@/api/organizations";
+import { bytesToMegabytes, megabytesToBytes, normalizeExtensions } from "@/lib/upload-policy";
+import { Input } from "@/components/ui/input";
 
 const COLORS = ["#fbbf24", "#4ade80", "#60a5fa"];
 
 export default function StorageSettings() {
+  const { user } = useAuth();
   const [usage, setUsage] = useState([
     { name: "Documents", value: 65 },
     { name: "Media Files", value: 25 },
     { name: "Other", value: 10 },
   ]);
+  const [maxUploadSizeMb, setMaxUploadSizeMb] = useState<string>("5");
+  const [allowedExtensionsInput, setAllowedExtensionsInput] = useState<string>(
+    ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg",
+  );
+  const [loadingPolicy, setLoadingPolicy] = useState(false);
+  const [savingPolicy, setSavingPolicy] = useState(false);
 
   const [connectedDrives, setConnectedDrives] = useState({
     local: true,
@@ -26,9 +37,85 @@ export default function StorageSettings() {
   });
 
   const totalUsed = usage.reduce((a, b) => a + b.value, 0);
+  const selectedOrganizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
+  const isAdmin = user?.authentication?.role === "ADMINISTRATOR" || user?.authentication?.role === "SUPER_ADMIN";
+
+  useEffect(() => {
+    if (!selectedOrganizationId || !isAdmin) {
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingPolicy(true);
+
+    organizationsApi
+      .getOrganizationById(selectedOrganizationId)
+      .then((organization) => {
+        if (cancelled) {
+          return;
+        }
+
+        setMaxUploadSizeMb(String(bytesToMegabytes(organization.maxUploadSizeBytes)));
+        setAllowedExtensionsInput((organization.allowedUploadExtensions || []).join(", "));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error("Failed to load upload policy settings");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingPolicy(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, selectedOrganizationId]);
 
   const handleCleanup = (type: string) => {
     toast.success(`${type} cleaned successfully!`);
+  };
+
+  const handleSavePolicy = async () => {
+    if (!selectedOrganizationId || !isAdmin) {
+      toast.error("Only administrators can update upload policy");
+      return;
+    }
+
+    const parsedMb = Number(maxUploadSizeMb);
+    if (!Number.isFinite(parsedMb) || parsedMb <= 0) {
+      toast.error("Max upload size must be a positive number");
+      return;
+    }
+
+    const normalizedExtensions = normalizeExtensions(
+      allowedExtensionsInput
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0),
+    );
+
+    if (!normalizedExtensions.length) {
+      toast.error("Provide at least one valid file extension");
+      return;
+    }
+
+    setSavingPolicy(true);
+    try {
+      await organizationsApi.updateOrganization(selectedOrganizationId, {
+        maxUploadSizeBytes: megabytesToBytes(parsedMb),
+        allowedUploadExtensions: normalizedExtensions,
+      });
+
+      setAllowedExtensionsInput(normalizedExtensions.join(", "));
+      toast.success("Upload policy saved successfully");
+    } catch (error) {
+      toast.error("Failed to save upload policy");
+    } finally {
+      setSavingPolicy(false);
+    }
   };
 
   const toggleDrive = (key: keyof typeof connectedDrives) => {
@@ -50,13 +137,7 @@ export default function StorageSettings() {
             <div className="w-full md:w-1/2 h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={usage}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
+                  <Pie data={usage} innerRadius={60} outerRadius={80} paddingAngle={3} dataKey="value">
                     {usage.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
@@ -81,13 +162,47 @@ export default function StorageSettings() {
               ))}
               <div className="mt-3">
                 <Progress value={totalUsed} className="h-2" />
-                <p className="text-xs text-gray-500 mt-2">
-                  {totalUsed}% of total storage used
-                </p>
+                <p className="text-xs text-gray-500 mt-2">{totalUsed}% of total storage used</p>
               </div>
             </div>
           </div>
         </section>
+
+        {isAdmin && (
+          <section>
+            <h3 className="text-sm font-medium mb-4 text-gray-600">Upload Policy</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="max-upload-size">Max upload size (MB)</Label>
+                <Input
+                  id="max-upload-size"
+                  type="number"
+                  min="1"
+                  value={maxUploadSizeMb}
+                  onChange={(event) => setMaxUploadSizeMb(event.target.value)}
+                  disabled={loadingPolicy || savingPolicy}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="allowed-extensions">Allowed file extensions (comma separated)</Label>
+                <Input
+                  id="allowed-extensions"
+                  value={allowedExtensionsInput}
+                  onChange={(event) => setAllowedExtensionsInput(event.target.value)}
+                  placeholder=".pdf, .docx, .png"
+                  disabled={loadingPolicy || savingPolicy}
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleSavePolicy} disabled={loadingPolicy || savingPolicy}>
+                  {savingPolicy ? "Saving policy..." : "Save Upload Policy"}
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Connected Drives */}
         <section>
@@ -98,11 +213,7 @@ export default function StorageSettings() {
                 <HardDrive className="text-amber-500" />
                 <Label htmlFor="local">Local Storage</Label>
               </div>
-              <Switch
-                id="local"
-                checked={connectedDrives.local}
-                onCheckedChange={() => toggleDrive("local")}
-              />
+              <Switch id="local" checked={connectedDrives.local} onCheckedChange={() => toggleDrive("local")} />
             </div>
 
             <div className="flex items-center justify-between">
@@ -122,11 +233,7 @@ export default function StorageSettings() {
                 <Cloud className="text-sky-600" />
                 <Label htmlFor="dropbox">Dropbox</Label>
               </div>
-              <Switch
-                id="dropbox"
-                checked={connectedDrives.dropbox}
-                onCheckedChange={() => toggleDrive("dropbox")}
-              />
+              <Switch id="dropbox" checked={connectedDrives.dropbox} onCheckedChange={() => toggleDrive("dropbox")} />
             </div>
           </div>
         </section>
@@ -152,9 +259,7 @@ export default function StorageSettings() {
         <Button variant="outline" onClick={() => toast.info("Changes discarded")}>
           Cancel
         </Button>
-        <Button onClick={() => toast.success("Storage settings saved successfully!")}>
-          Save Changes
-        </Button>
+        <Button onClick={() => toast.success("Storage settings saved successfully!")}>Save Changes</Button>
       </CardFooter>
     </Card>
   );
