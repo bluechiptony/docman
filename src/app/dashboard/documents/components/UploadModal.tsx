@@ -14,7 +14,12 @@ import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { organizationsApi } from "@/api/organizations";
-import { getEffectiveUploadPolicy, validateFileAgainstPolicy, type UploadPolicy } from "@/lib/upload-policy";
+import {
+  getEffectiveUploadPolicy,
+  validateFileAgainstPolicy,
+  bytesToMegabytes,
+  type UploadPolicy,
+} from "@/lib/upload-policy";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -129,7 +134,20 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
       const acceptedFiles = incoming.filter((file) => {
         const validation = validateFileAgainstPolicy(file, uploadPolicy);
         if (!validation.valid) {
-          toast.error("This file is not allowed by upload policy");
+          if (validation.reason === "size") {
+            const maxSizeMb = bytesToMegabytes(uploadPolicy.maxUploadSizeBytes);
+            const fileSizeMb = bytesToMegabytes(file.size);
+            toast.error(`File too large: ${file.name}`, {
+              description: `Max size: ${maxSizeMb}MB, Your file: ${fileSizeMb}MB`,
+            });
+          } else if (validation.reason === "type") {
+            const allowedTypes = uploadPolicy.allowedUploadExtensions.join(", ");
+            toast.error(`File type not allowed: ${file.name}`, {
+              description: `Allowed types: ${allowedTypes}`,
+            });
+          } else {
+            toast.error(`File rejected: ${file.name}`);
+          }
           return false;
         }
 
@@ -312,6 +330,21 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
               <p className="text-xs text-muted-foreground">Note: Only a single file is allowed in this mode.</p>
             </div>
           )}
+
+          {/* 📋 Upload Policy Information */}
+          <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-xs font-medium text-gray-700">Upload Requirements</p>
+            <div className="space-y-1">
+              <p className="text-xs text-gray-600">
+                <span className="font-medium">Max file size:</span> {bytesToMegabytes(uploadPolicy.maxUploadSizeBytes)}
+                MB
+              </p>
+              <p className="text-xs text-gray-600">
+                <span className="font-medium">Allowed types:</span>{" "}
+                {uploadPolicy.allowedUploadExtensions.map((ext) => ext.toUpperCase()).join(", ")}
+              </p>
+            </div>
+          </div>
 
           {/* ✅ Drag & Drop Zone */}
           <div
