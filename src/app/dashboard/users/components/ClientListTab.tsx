@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ interface ManagerWithClients {
 }
 
 export function ClientListTab() {
+  const pageSize = 10;
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<ManagerWithClients[]>([]);
@@ -41,6 +43,7 @@ export function ClientListTab() {
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [assigning, setAssigning] = useState(false);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetchData();
@@ -51,14 +54,11 @@ export function ClientListTab() {
 
     setLoading(true);
     try {
-      // Fetch all managers in the organization
       const usersResponse = await apiClient.get(`/user/get/organization/${user.selectedOrganization.id}`);
       const allUsers = usersResponse.data || [];
 
-      // Filter only managers
       const managerUsers = allUsers.filter((u: Manager) => u.authentication?.role === "MANAGER");
 
-      // Fetch clients for each manager
       const managersWithClients = await Promise.all(
         managerUsers.map(async (manager: Manager) => {
           try {
@@ -79,9 +79,8 @@ export function ClientListTab() {
 
       setManagers(managersWithClients);
 
-      // Fetch all available clients
       const clientsResponse = await apiClient.get(`/clients?organizationId=${user.selectedOrganization.id}`);
-      setAvailableClients(clientsResponse.data || []);
+      setAvailableClients(clientsResponse.data?.data || []);
     } catch (error: any) {
       console.error("Failed to fetch managers and clients:", error);
       toast.error("Failed to load data");
@@ -102,7 +101,7 @@ export function ClientListTab() {
       toast.success("Client assigned successfully");
       setSelectedManagerId("");
       setSelectedClientId("");
-      fetchData(); // Refresh the list
+      await fetchData();
     } catch (error: any) {
       console.error("Failed to assign client:", error);
       const message = error.response?.data?.message || "Failed to assign client";
@@ -116,7 +115,7 @@ export function ClientListTab() {
     try {
       await apiClient.delete(`/user/${managerId}/clients/${clientId}`);
       toast.success("Client removed successfully");
-      fetchData(); // Refresh the list
+      await fetchData();
     } catch (error: any) {
       console.error("Failed to remove client:", error);
       toast.error(error.response?.data?.message || "Failed to remove client");
@@ -132,6 +131,23 @@ export function ClientListTab() {
       m.clients.some((c) => c.name.toLowerCase().includes(searchLower))
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredManagers.length / pageSize));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedManagers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredManagers.slice(start, start + pageSize);
+  }, [filteredManagers, page]);
 
   if (loading) {
     return (
@@ -158,7 +174,6 @@ export function ClientListTab() {
 
   return (
     <div className="space-y-6">
-      {/* Assign Client Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -208,7 +223,6 @@ export function ClientListTab() {
         </CardContent>
       </Card>
 
-      {/* Search and List */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -231,48 +245,59 @@ export function ClientListTab() {
               <p className="text-sm">No results found</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Manager</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Assigned Clients</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredManagers.map((item) => (
-                  <TableRow key={item.manager.id}>
-                    <TableCell className="font-medium">
-                      {item.manager.firstName} {item.manager.lastName}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{item.manager.emailAddress}</TableCell>
-                    <TableCell>
-                      {item.clients.length === 0 ? (
-                        <span className="text-sm text-muted-foreground italic">No clients assigned</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {item.clients.map((client) => (
-                            <Badge key={client.id} variant="secondary" className="gap-1">
-                              {client.name}
-                              <button
-                                onClick={() => handleRemoveClient(item.manager.id, client.id)}
-                                className="ml-1 hover:text-destructive"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline">{item.clients.length} clients</Badge>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Manager</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Assigned Clients</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedManagers.map((item) => (
+                    <TableRow key={item.manager.id}>
+                      <TableCell className="font-medium">
+                        {item.manager.firstName} {item.manager.lastName}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{item.manager.emailAddress}</TableCell>
+                      <TableCell>
+                        {item.clients.length === 0 ? (
+                          <span className="text-sm text-muted-foreground italic">No clients assigned</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {item.clients.map((client) => (
+                              <Badge key={client.id} variant="secondary" className="gap-1">
+                                {client.name}
+                                <button
+                                  onClick={() => handleRemoveClient(item.manager.id, client.id)}
+                                  className="ml-1 hover:text-destructive"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="outline">{item.clients.length} clients</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <div className="pt-4">
+                <TablePaginationControls
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  showWhenSinglePage
+                />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

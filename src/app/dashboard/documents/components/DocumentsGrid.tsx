@@ -110,10 +110,10 @@ export function DocumentsGrid({
   const [docPermissions, setDocPermissions] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const applicantFolders = items.filter(
-      (i) => i.type === "folder" && i.folderType === "APPLICANT" && i.folderRequiredDocumentsId,
+    const staffFolders = items.filter(
+      (i) => i.type === "folder" && i.folderType === "STAFF" && i.folderRequiredDocumentsId,
     );
-    const missing = applicantFolders.filter((f) => !reqStatus[f.id]);
+    const missing = staffFolders.filter((f) => !reqStatus[f.id]);
     if (missing.length === 0) return;
 
     (async () => {
@@ -230,14 +230,21 @@ export function DocumentsGrid({
   const handleDragLeave = () => setHoveredFolder(null);
 
   // --- Empty state ---
+  const role = user?.authentication?.role;
+  const canManage = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER";
+
   const renderGridActionsMenu = () => (
     <ContextMenuContent>
-      <ContextMenuItem onClick={onOpenCreateFolder}>
-        <FolderPlus className="w-4 h-4 mr-2" /> New Folder
-      </ContextMenuItem>
-      <ContextMenuItem onClick={onOpenUpload}>
-        <UploadCloud className="w-4 h-4 mr-2" /> Upload Document
-      </ContextMenuItem>
+      {canManage && (
+        <ContextMenuItem onClick={onOpenCreateFolder}>
+          <FolderPlus className="w-4 h-4 mr-2" /> New Folder
+        </ContextMenuItem>
+      )}
+      {canManage && (
+        <ContextMenuItem onClick={onOpenUpload}>
+          <UploadCloud className="w-4 h-4 mr-2" /> Upload Document
+        </ContextMenuItem>
+      )}
     </ContextMenuContent>
   );
 
@@ -313,12 +320,12 @@ export function DocumentsGrid({
                         <Folder
                           className={`h-10 w-10 ${hoveredFolder === item.id ? "text-amber-600" : "text-gray-700"}`}
                         />
-                        {item.folderType === "APPLICANT" && (
+                        {item.folderType === "STAFF" && (
                           <span className="absolute -top-1 -right-1 bg-amber-100 border border-amber-300 rounded-full p-0.5">
                             <User className="h-3 w-3 text-amber-700" />
                           </span>
                         )}
-                        {item.folderType === "APPLICANT" && reqStatus[item.id]?.applicable && (
+                        {item.folderType === "STAFF" && reqStatus[item.id]?.applicable && (
                           <div className="absolute -bottom-1 right-0">
                             <Badge
                               variant="outline"
@@ -342,6 +349,20 @@ export function DocumentsGrid({
                       getFileIcon(item.name)
                     )}
                     <p className="text-sm text-center truncate w-full">{item.name}</p>
+                    {item.type === "folder" && item.folderType === "STAFF" && (
+                      <div className="w-full space-y-1">
+                        {item.staff?.staffId && (
+                          <p className="text-[11px] text-center text-muted-foreground truncate w-full">
+                            Staff ID: {item.staff.staffId}
+                          </p>
+                        )}
+                        {item.staff?.otherName && (
+                          <p className="text-[11px] text-center text-muted-foreground truncate w-full">
+                            Other Name: {item.staff.otherName}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {item.type === "file" && item.documentType && (
                       <p className="text-xs text-center text-muted-foreground truncate w-full">
                         {item.documentType.name}

@@ -22,6 +22,8 @@ function AcceptInviteContent() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    otherName: "",
+    staffId: "",
     password: "",
     confirmPassword: "",
   });
@@ -91,6 +93,8 @@ function AcceptInviteContent() {
         email,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        ...(formData.otherName.trim() ? { otherName: formData.otherName.trim() } : {}),
+        ...(formData.staffId.trim() ? { staffId: formData.staffId.trim() } : {}),
         password: formData.password,
       });
 
@@ -194,6 +198,36 @@ function AcceptInviteContent() {
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 disabled={submitting}
                 required
+              />
+            </div>
+
+            {/* Other Name */}
+            <div className="space-y-2">
+              <label htmlFor="otherName" className="text-sm font-medium">
+                Other Name <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                id="otherName"
+                type="text"
+                placeholder="Middle name or alias"
+                value={formData.otherName}
+                onChange={(e) => setFormData({ ...formData, otherName: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Staff ID */}
+            <div className="space-y-2">
+              <label htmlFor="staffId" className="text-sm font-medium">
+                Staff ID <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                id="staffId"
+                type="text"
+                placeholder="Your staff or employee ID"
+                value={formData.staffId}
+                onChange={(e) => setFormData({ ...formData, staffId: e.target.value })}
+                disabled={submitting}
               />
             </div>
 

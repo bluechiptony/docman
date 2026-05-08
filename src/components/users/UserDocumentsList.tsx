@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import DocumentDrawer from "@/app/dashboard/documents/components/DocumentDrawer";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
 
 interface Doc {
   id: string;
@@ -107,28 +107,8 @@ export default function UserDocumentsList({ documents }: Props) {
         </tbody>
       </table>
 
-      <div className="flex items-center justify-between p-4 border-t">
-        <div className="text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </Button>
-        </div>
+      <div className="p-4 border-t">
+        <TablePaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
       </div>
 
       <DocumentDrawer open={drawerOpen} onClose={handleClose} documentId={selectedDocId} />

@@ -3,9 +3,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, useUsers } from "../hooks/useUsers";
+import { User } from "../hooks/useUsers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,10 +19,20 @@ import clsx from "clsx";
 interface UserTableProps {
   users: User[];
   isLoading: boolean;
+  onRoleChange: (userId: string, role: "ADMINISTRATOR" | "EDITOR" | "VIEWER") => Promise<void>;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
-export default function UserTable({ users, isLoading }: UserTableProps) {
-  const { updateRole } = useUsers();
+export default function UserTable({
+  users,
+  isLoading,
+  onRoleChange,
+  currentPage,
+  totalPages,
+  onPageChange,
+}: UserTableProps) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const router = useRouter();
 
@@ -35,7 +46,7 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
 
   const handleRoleChange = async (userId: string, role: string) => {
     setSelectedUser(userId);
-    await updateRole(userId, role as "ADMINISTRATOR" | "EDITOR" | "VIEWER");
+    await onRoleChange(userId, role as "ADMINISTRATOR" | "EDITOR" | "VIEWER");
     setSelectedUser(null);
   };
 
@@ -152,6 +163,15 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
           ))}
         </tbody>
       </table>
+
+      <div className="p-4 border-t">
+        <TablePaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          showWhenSinglePage
+        />
+      </div>
     </div>
   );
 }

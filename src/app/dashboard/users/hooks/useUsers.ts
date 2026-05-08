@@ -19,50 +19,46 @@ export interface User {
   organizations?: any[];
 }
 
-const TEST_USERS: User[] = [
-  {
-    id: "1",
-    emailAddress: "alice@finserve.com",
-    firstName: "Alice",
-    lastName: "Johnson",
-    createdAt: new Date("2025-10-19T19:41:06.102Z"),
-    updatedAt: new Date("2025-10-19T19:41:06.102Z"),
-    authentication: { role: "ADMINISTRATOR", active: true },
-  },
-  {
-    id: "2",
-    emailAddress: "bob@finserve.com",
-    firstName: "Bob",
-    lastName: "Smith",
-    createdAt: new Date("2025-10-19T19:41:06.102Z"),
-    updatedAt: new Date("2025-10-19T19:41:06.102Z"),
-    authentication: { role: "EDITOR", active: true },
-  },
-  {
-    id: "3",
-    emailAddress: "carol@finserve.com",
-    firstName: "Carol",
-    lastName: "Danvers",
-    createdAt: new Date("2025-10-19T19:41:06.102Z"),
-    updatedAt: new Date("2025-10-19T19:41:06.102Z"),
-    authentication: { role: "VIEWER", active: true },
-  },
-];
+interface UsersListResponse {
+  data: User[];
+  pagination: {
+    page: number;
+    perPage: number;
+    total: number;
+  };
+}
 
-export function useUsers() {
+export function useUsers(searchQuery: string = "") {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(total / size));
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [page, size, searchQuery]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get("/user/get/all");
-      setUsers(response.data);
+      const response = await apiClient.get<UsersListResponse>("/user/get/all", {
+        params: {
+          page,
+          size,
+          ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
+        },
+      });
+
+      setUsers(response.data?.data || []);
+      setTotal(response.data?.pagination?.total || 0);
     } catch (err: any) {
       console.error("Failed to fetch users:", err);
       toast.error(err.response?.data?.message || "Failed to load users");
@@ -134,6 +130,12 @@ export function useUsers() {
     updateRole,
     inviteUser,
     loading,
+    page,
+    size,
+    total,
+    totalPages,
+    setPage,
+    setSize,
     canInvite,
     canManageRoles,
     currentUser: user,

@@ -23,19 +23,46 @@ export interface UpdateClientFoldersPayload {
   folderIds: string[];
 }
 
+export interface PaginationMeta {
+  page: number;
+  perPage: number;
+  total: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationMeta;
+}
+
+export interface ClientManager {
+  id: string;
+  firstName: string;
+  lastName: string;
+  emailAddress: string;
+  authentication: {
+    role: string;
+    active: boolean;
+  };
+}
+
 export const clientsApi = {
-  getByOrganization: (organizationId: string) => {
-    console.log("📋 clientsApi.getByOrganization called with organizationId:", organizationId);
-    return apiRequest<Client[]>(async () => {
-      console.log("🔌 Making request to /clients with params:", { organizationId });
-      const response = await apiClient.get("/clients", { params: { organizationId } });
-      console.log("✅ Got response from /clients:", response);
-      console.log("✅ Response data:", response.data);
+  getByOrganization: (organizationId: string, page = 1, perPage = 25) => {
+    return apiRequest<PaginatedResponse<Client>>(async () => {
+      const response = await apiClient.get("/clients", {
+        params: { organizationId, page, perPage },
+      });
       return response;
     });
   },
 
   getById: (id: string) => apiRequest<Client>(() => apiClient.get(`/clients/${id}`)),
+
+  getManagers: (id: string, page = 1, perPage = 25) =>
+    apiRequest<PaginatedResponse<ClientManager>>(() =>
+      apiClient.get(`/clients/${id}/managers`, {
+        params: { page, perPage },
+      }),
+    ),
 
   create: (payload: CreateClientPayload) => apiRequest<Client>(() => apiClient.post("/clients", payload)),
 

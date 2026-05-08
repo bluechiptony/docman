@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Clock, AlertCircle, FileText, HelpCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle, HelpCircle } from "lucide-react";
 import { useAuthUser } from "@/providers/auth.provider";
 import { getDocumentPreviewUrl } from "@/lib/documents.service";
 
@@ -71,25 +73,44 @@ export default function ModerationDashboard() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [managerFolderIds, setManagerFolderIds] = useState<Set<string>>(new Set());
+  const [managerFoldersLoaded, setManagerFoldersLoaded] = useState(false);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
 
   useEffect(() => {
     if (user?.authentication?.role === "MANAGER") {
       fetchManagerFolders();
     } else {
+      setManagerFoldersLoaded(true);
       fetchStats();
     }
   }, [user]);
 
   useEffect(() => {
-    if (user?.authentication?.role !== "MANAGER" || managerFolderIds.size > 0) {
+    if (user?.authentication?.role !== "MANAGER" || managerFoldersLoaded) {
       fetchStats();
     }
-  }, [managerFolderIds, user]);
+  }, [managerFolderIds, managerFoldersLoaded, user]);
 
   useEffect(() => {
-    fetchReviews(activeTab);
+    if (user?.authentication?.role !== "MANAGER" || managerFoldersLoaded) {
+      fetchReviews(activeTab);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, page, perPage, managerFolderIds, managerFoldersLoaded, user]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, perPage]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   useEffect(() => {
     if (selectedReview) {
@@ -123,35 +144,25 @@ export default function ModerationDashboard() {
       setManagerFolderIds(folderIds);
     } catch (error) {
       console.error("Failed to fetch manager folders:", error);
+    } finally {
+      setManagerFoldersLoaded(true);
     }
   };
 
   const fetchStats = async () => {
     try {
-      const response = await apiClient.get("/documents/review/statistics");
-      let statsData = response.data;
-
-      // For managers, filter stats based on their client folders
-      if (user?.authentication?.role === "MANAGER" && managerFolderIds.size > 0) {
-        // Since we can't easily filter stats server-side, we'll fetch all reviews and calculate stats
-        const allReviewsResponse = await apiClient.get("/documents/review/pending");
-        const allReviews = allReviewsResponse.data || [];
-
-        const managerReviews = allReviews.filter(
-          (review: DocumentReview) => review.document.folderId && managerFolderIds.has(review.document.folderId),
-        );
-
-        // Calculate stats from filtered reviews
-        const managerStats: ReviewStats = {};
-        managerReviews.forEach((review: DocumentReview) => {
-          const status = review.status as keyof ReviewStats;
-          managerStats[status] = (managerStats[status] || 0) + 1;
-        });
-
-        statsData = managerStats;
+      if (user?.authentication?.role === "MANAGER" && managerFoldersLoaded && managerFolderIds.size === 0) {
+        setStats({});
+        return;
       }
 
-      setStats(statsData);
+      const folderIds = user?.authentication?.role === "MANAGER" ? Array.from(managerFolderIds).join(",") : undefined;
+
+      const response = await apiClient.get("/documents/review/statistics", {
+        params: folderIds ? { folderIds } : {},
+      });
+
+      setStats(response.data);
     } catch (error) {
       console.error("Failed to fetch review statistics:", error);
     }
@@ -159,22 +170,25 @@ export default function ModerationDashboard() {
 
   const fetchReviews = async (status: string = "PENDING") => {
     try {
-      setLoading(true);
-      const endpoint = status === "PENDING" ? "/documents/review/pending" : `/documents/review/status/${status}`;
-      const response = await apiClient.get(endpoint, {
-        params: { page: 1, size: 20 },
-      });
-
-      let fetchedReviews = response.data || [];
-
-      // Filter reviews for managers to only show documents from their client folders
-      if (user?.authentication?.role === "MANAGER" && managerFolderIds.size > 0) {
-        fetchedReviews = fetchedReviews.filter(
-          (review: DocumentReview) => review.document.folderId && managerFolderIds.has(review.document.folderId),
-        );
+      if (user?.authentication?.role === "MANAGER" && managerFoldersLoaded && managerFolderIds.size === 0) {
+        setReviews([]);
+        setTotal(0);
+        return;
       }
 
-      setReviews(fetchedReviews);
+      setLoading(true);
+      const endpoint = status === "PENDING" ? "/documents/review/pending" : `/documents/review/status/${status}`;
+      const folderIds = user?.authentication?.role === "MANAGER" ? Array.from(managerFolderIds).join(",") : undefined;
+      const response = await apiClient.get(endpoint, {
+        params: {
+          page,
+          size: perPage,
+          ...(folderIds ? { folderIds } : {}),
+        },
+      });
+
+      setReviews(response.data?.data || []);
+      setTotal(response.data?.pagination?.total || 0);
     } catch (error: unknown) {
       console.error("Failed to fetch reviews:", error);
       toast.error("Failed to load reviews");
@@ -383,7 +397,21 @@ export default function ModerationDashboard() {
       {/* Reviews Tabs */}
       <Card>
         <CardHeader>
-          <CardTitle>Reviews</CardTitle>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <CardTitle>Reviews</CardTitle>
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <span className="text-sm text-muted-foreground">Rows</span>
+              <select
+                value={perPage}
+                onChange={(event) => setPerPage(Number(event.target.value))}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -401,32 +429,86 @@ export default function ModerationDashboard() {
               ) : reviews.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">No reviews found</div>
               ) : (
-                <div className="space-y-2">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(review.status)}
-                            <h3 className="font-medium truncate">{review.document.name}</h3>
-                            <Badge className={getStatusColor(review.status)}>{review.status.replace(/_/g, " ")}</Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Uploaded by: {review.document.uploadedBy.firstName} {review.document.uploadedBy.lastName}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(review.createdAt).toLocaleDateString()} at{" "}
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="px-4">Document</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Uploaded By</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead className="px-4 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reviews.map((review) => (
+                        <TableRow key={review.id}>
+                          <TableCell className="px-4">
+                            <div className="min-w-0">
+                              <div className="font-medium text-foreground truncate max-w-[280px]">
+                                {review.document.name}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{review.document.mimeType}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(review.status)}
+                              <Badge className={getStatusColor(review.status)}>
+                                {review.status.replace(/_/g, " ")}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="min-w-0">
+                              <div className="truncate max-w-[220px]">
+                                {review.document.uploadedBy.firstName} {review.document.uploadedBy.lastName}
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[220px]">
+                                {review.document.uploadedBy.emailAddress}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="min-w-0">
+                              <div className="truncate max-w-[180px]">{review.document.folder?.name || "-"}</div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                {review.document.documentType?.name || "No type"}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {new Date(review.createdAt).toLocaleDateString()}{" "}
                             {new Date(review.createdAt).toLocaleTimeString()}
-                          </p>
-                          {review.reason && <p className="text-sm text-red-600 mt-2">Reason: {review.reason}</p>}
-                          {review.notes && <p className="text-sm text-gray-600 mt-2">Notes: {review.notes}</p>}
-                        </div>
-                        <Button size="sm" onClick={() => setSelectedReview(review)}>
-                          Review
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                          </TableCell>
+                          <TableCell>
+                            <div className="min-w-0 max-w-[260px] text-sm text-muted-foreground">
+                              {review.reason ? (
+                                <div className="truncate text-red-600">Reason: {review.reason}</div>
+                              ) : null}
+                              {review.notes ? <div className="truncate">Notes: {review.notes}</div> : <span>-</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 text-right">
+                            <Button size="sm" onClick={() => setSelectedReview(review)}>
+                              Review
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  <div className="border-t p-4">
+                    <TablePaginationControls
+                      currentPage={page}
+                      totalPages={totalPages}
+                      onPageChange={setPage}
+                      showWhenSinglePage
+                    />
+                  </div>
                 </div>
               )}
             </div>

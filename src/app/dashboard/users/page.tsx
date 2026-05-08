@@ -7,19 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Users, Mail, Loader, Plus, Building2, HelpCircle } from "lucide-react";
 import UserTable from "./components/UserTable";
 import { InvitesTabContent } from "./components/InvitesTabContent";
-import { ClientListTab } from "./components/ClientListTab";
+// import { ClientListTab } from "./components/ClientListTab";
 import { CreateUserModal } from "./components/CreateUserModal";
 import { useUsers } from "./hooks/useUsers";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth, useAuthUser } from "@/providers/auth.provider";
 import { useManagerAccess } from "@/hooks/useManagerAccess";
+import { ClientListTab } from "./components/ClientListTab";
 
 export default function UsersPage() {
-  const { users, loading, updateRole, deactivateUser, currentUser, canManageRoles } = useUsers();
+  const [search, setSearch] = useState("");
+  const { users, loading, updateRole, page, setPage, size, setSize, totalPages } = useUsers(search);
   const { user } = useAuth();
   const { user: authUser } = useAuthUser();
   const { hasAccess, loading: checkingAccess } = useManagerAccess();
-  const [search, setSearch] = useState("");
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -41,13 +43,6 @@ export default function UsersPage() {
     authUser?.authentication?.role === "MANAGER";
 
   const isManager = authUser?.authentication?.role === "MANAGER";
-
-  const filtered = users.filter(
-    (u) =>
-      u.firstName.toLowerCase().includes(search.toLowerCase()) ||
-      u.lastName.toLowerCase().includes(search.toLowerCase()) ||
-      u.emailAddress.toLowerCase().includes(search.toLowerCase()),
-  );
 
   return (
     <div className="flex flex-col gap-6 h-full p-6">
@@ -88,12 +83,33 @@ export default function UsersPage() {
         {!isManager && (
           <TabsContent value="users" className="space-y-4">
             <div className="flex justify-between items-center gap-4">
-              <Input
-                placeholder="Search users..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="max-w-sm"
-              />
+              <div className="flex items-center gap-3">
+                <Input
+                  placeholder="Search users..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="max-w-sm"
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Rows</span>
+                  <Select
+                    value={String(size)}
+                    onValueChange={(value) => {
+                      setSize(Number(value));
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex items-center gap-4">
                 {isSuperAdmin && (
                   <Button onClick={() => setCreateUserOpen(true)} className="gap-2" size="sm">
@@ -106,7 +122,14 @@ export default function UsersPage() {
                 </p> */}
               </div>
             </div>
-            <UserTable users={filtered} isLoading={loading} />
+            <UserTable
+              users={users}
+              isLoading={loading}
+              onRoleChange={updateRole}
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
           </TabsContent>
         )}
 

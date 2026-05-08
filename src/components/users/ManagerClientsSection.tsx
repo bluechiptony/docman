@@ -40,7 +40,7 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
 
       // Fetch all clients in the organization
       const allClientsResponse = await apiClient.get(`/clients?organizationId=${organizationId}`);
-      const allClients = allClientsResponse.data || [];
+      const allClients = allClientsResponse.data?.data || [];
 
       // Filter to get unassigned clients
       const assignedIds = new Set((assignedResponse.data || []).map((c: Client) => c.id));

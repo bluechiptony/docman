@@ -13,7 +13,7 @@ export interface DocumentItem {
   slug?: string;
   type: "folder" | "file";
   parentId: string | null;
-  // When item is a folder, this indicates DB-level folder type (e.g., APPLICANT)
+  // When item is a folder, this indicates DB-level folder type (e.g., STAFF)
   folderType?: string;
   folderRequiredDocumentsId?: string;
   size?: number;
@@ -29,12 +29,27 @@ export interface DocumentItem {
       name: string;
     } | null;
   };
+  staff?: {
+    id: string;
+    staffId?: string | null;
+    otherName?: string | null;
+    firstName?: string;
+    lastName?: string;
+  };
 }
 
 interface FolderPath {
   id: string | null;
   name: string;
   slug: string | null;
+  folderType?: string;
+  staff?: {
+    id: string;
+    staffId?: string | null;
+    otherName?: string | null;
+    firstName?: string;
+    lastName?: string;
+  };
 }
 
 const ROOT_PATH: FolderPath = { id: null, name: "Root", slug: null };
@@ -175,7 +190,16 @@ export function useDocuments() {
       const folder = documents.find((f) => f.id === id && f.type === "folder");
       if (!folder) return;
 
-      setPath((prev) => [...prev, { id: folder.id, name: folder.name, slug: folder.slug ?? null }]);
+      setPath((prev) => [
+        ...prev,
+        {
+          id: folder.id,
+          name: folder.name,
+          slug: folder.slug ?? null,
+          folderType: folder.folderType,
+          staff: folder.staff,
+        },
+      ]);
     },
     [documents],
   );
@@ -196,6 +220,8 @@ export function useDocuments() {
             id: item.id,
             name: item.name,
             slug: item.slug ?? null,
+            folderType: item.folderType,
+            staff: item.staff,
           });
         }
       });

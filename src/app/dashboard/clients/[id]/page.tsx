@@ -5,8 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import FolderExshareDialog from "@/components/documents/FolderExshareDialog";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Loader, ArrowLeft, FolderOpen, Users, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientsApi, Client } from "@/api/clients";
@@ -43,6 +45,11 @@ export default function ClientDetailPage() {
   const [folderSearch, setFolderSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [folderPage, setFolderPage] = useState(1);
+  const [userPage, setUserPage] = useState(1);
+  const [foldersPerPage, setFoldersPerPage] = useState(10);
+  const [usersPerPage, setUsersPerPage] = useState(25);
+  const [usersTotal, setUsersTotal] = useState(0);
   const [folderShareTarget, setFolderShareTarget] = useState<{ folderId: string; folderName: string } | null>(null);
   const [folderShareOpen, setFolderShareOpen] = useState(false);
 
@@ -65,6 +72,22 @@ export default function ClientDetailPage() {
     );
   }, [managers, userSearch]);
 
+  const paginatedFolders = useMemo(() => {
+    const start = (folderPage - 1) * foldersPerPage;
+    return filteredFolders.slice(start, start + foldersPerPage);
+  }, [filteredFolders, folderPage, foldersPerPage]);
+
+  const totalFolderPages = Math.max(1, Math.ceil(filteredFolders.length / foldersPerPage));
+  const totalUserPages = Math.max(1, Math.ceil(usersTotal / usersPerPage));
+
+  useEffect(() => {
+    setFolderPage(1);
+  }, [folderSearch, clientId]);
+
+  useEffect(() => {
+    setUserPage(1);
+  }, [userSearch, clientId]);
+
   useEffect(() => {
     if (!clientId || !hasAccess) return;
 
@@ -74,13 +97,14 @@ export default function ClientDetailPage() {
       try {
         const [clientData, managersData] = await Promise.all([
           clientsApi.getById(clientId),
-          apiClient.get(`/clients/${clientId}/managers`).then((res) => res.data),
+          clientsApi.getManagers(clientId, userPage, usersPerPage),
         ]);
 
         if (!cancelled) {
           setClient(clientData);
           setFolders(clientData.folders || []);
-          setManagers(managersData || []);
+          setManagers(managersData?.data || []);
+          setUsersTotal(managersData?.pagination?.total || 0);
         }
       } catch (error) {
         console.error("Failed to load client detail:", error);
@@ -97,7 +121,7 @@ export default function ClientDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [clientId, hasAccess, router]);
+  }, [clientId, hasAccess, router, userPage, usersPerPage]);
 
   if (checkingAccess) {
     return (
@@ -156,12 +180,33 @@ export default function ClientDetailPage() {
 
         {/* Folders Tab */}
         <TabsContent value="folders" className="space-y-4">
-          <Input
-            placeholder="Search folders..."
-            value={folderSearch}
-            onChange={(e) => setFolderSearch(e.target.value)}
-            className="max-w-sm"
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="Search folders..."
+              value={folderSearch}
+              onChange={(e) => setFolderSearch(e.target.value)}
+              className="max-w-sm"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows</span>
+              <Select
+                value={String(foldersPerPage)}
+                onValueChange={(value) => {
+                  setFoldersPerPage(Number(value));
+                  setFolderPage(1);
+                }}
+              >
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="border rounded-lg overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
@@ -178,7 +223,7 @@ export default function ClientDetailPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredFolders.map((folder) => (
+                  paginatedFolders.map((folder) => (
                     <ContextMenu key={folder.id}>
                       <ContextMenuTrigger asChild>
                         <tr
@@ -205,16 +250,44 @@ export default function ClientDetailPage() {
               </tbody>
             </table>
           </div>
+          <TablePaginationControls
+            currentPage={folderPage}
+            totalPages={totalFolderPages}
+            onPageChange={setFolderPage}
+            className="flex justify-center gap-2 pt-4"
+            showWhenSinglePage
+          />
         </TabsContent>
 
         {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
-          <Input
-            placeholder="Search users..."
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-            className="max-w-sm"
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="Search users..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              className="max-w-sm"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows</span>
+              <Select
+                value={String(usersPerPage)}
+                onValueChange={(value) => {
+                  setUsersPerPage(Number(value));
+                  setUserPage(1);
+                }}
+              >
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="border rounded-lg overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
@@ -259,6 +332,12 @@ export default function ClientDetailPage() {
               </tbody>
             </table>
           </div>
+          <TablePaginationControls
+            currentPage={userPage}
+            totalPages={totalUserPages}
+            onPageChange={setUserPage}
+            className="flex justify-center gap-2 pt-4"
+          />
         </TabsContent>
       </Tabs>
 

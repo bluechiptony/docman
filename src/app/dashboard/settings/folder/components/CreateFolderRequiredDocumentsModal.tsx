@@ -110,7 +110,7 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
 
   const toggleDocumentType = (id: string) => {
     setSelectedDocuments((prev) =>
-      prev.find((d) => d.id === id) ? prev.filter((item) => item.id !== id) : [...prev, { id, isRequired: true }]
+      prev.find((d) => d.id === id) ? prev.filter((item) => item.id !== id) : [...prev, { id, isRequired: true }],
     );
   };
 
@@ -180,7 +180,7 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
               className="w-full border rounded px-3 py-2"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Standard Applicant Documents"
+              placeholder="e.g., Standard Staff Documents"
               required
             />
           </div>

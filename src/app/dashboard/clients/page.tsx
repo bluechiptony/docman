@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import FolderExshareDialog from "@/components/documents/FolderExshareDialog";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Loader, Plus, Share2, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { clientsApi, Client } from "@/api/clients";
@@ -31,6 +33,9 @@ export default function ClientsPage() {
   const [folders, setFolders] = useState<FolderOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [total, setTotal] = useState(0);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
@@ -55,6 +60,7 @@ export default function ClientsPage() {
     if (!organizationId) {
       setClients([]);
       setFolders([]);
+      setTotal(0);
       setLoading(false);
       return;
     }
@@ -64,11 +70,12 @@ export default function ClientsPage() {
       setLoading(true);
       try {
         const [clientData, folderData] = await Promise.all([
-          clientsApi.getByOrganization(organizationId),
+          clientsApi.getByOrganization(organizationId, page, perPage),
           apiClient.get("/folders/get/all", { params: { orgId: organizationId } }).then((res) => res.data),
         ]);
         if (!cancelled) {
-          setClients(clientData || []);
+          setClients(clientData?.data || []);
+          setTotal(clientData?.pagination?.total || 0);
           setFolders(
             (folderData || []).map((folder: any) => ({
               id: folder.id,
@@ -90,13 +97,14 @@ export default function ClientsPage() {
     return () => {
       cancelled = true;
     };
-  }, [organizationId]);
+  }, [organizationId, page, perPage]);
 
   const refreshClients = async () => {
     if (!organizationId) return;
     try {
-      const clientData = await clientsApi.getByOrganization(organizationId);
-      setClients(clientData || []);
+      const clientData = await clientsApi.getByOrganization(organizationId, page, perPage);
+      setClients(clientData?.data || []);
+      setTotal(clientData?.pagination?.total || 0);
     } catch (error) {
       console.error("Failed to refresh clients:", error);
     }
@@ -122,7 +130,10 @@ export default function ClientsPage() {
       toast.success("Client created");
       setCreateName("");
       setCreateOpen(false);
-      await refreshClients();
+      if (page === 1) {
+        await refreshClients();
+      }
+      setPage(1);
     } catch (error: any) {
       console.error("Failed to create client:", error);
       const message = error.response?.data?.message || "Failed to create client";
@@ -190,12 +201,36 @@ export default function ClientsPage() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Input
-          placeholder="Search clients..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+        <div className="flex items-center gap-3">
+          <Input
+            placeholder="Search clients..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="max-w-sm"
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Rows</span>
+            <Select
+              value={String(perPage)}
+              onValueChange={(value) => {
+                setPerPage(Number(value));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         {!isManager && (
           <Button onClick={() => setCreateOpen(true)} className="gap-2" size="sm">
             <Plus className="w-4 h-4" />
@@ -272,6 +307,14 @@ export default function ClientsPage() {
           </tbody>
         </table>
       </div>
+
+      <TablePaginationControls
+        currentPage={page}
+        totalPages={Math.ceil(total / perPage)}
+        onPageChange={setPage}
+        size="default"
+        showWhenSinglePage
+      />
 
       <FolderExshareDialog
         open={clientShareOpen}

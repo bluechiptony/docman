@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInvites } from "../hooks/useInvites";
 import { InviteUserModal } from "./InviteUserModal";
 import { BulkInviteModal } from "./BulkInviteModal";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Trash2, Copy, ExternalLink, Upload } from "lucide-react";
 import Link from "next/link";
 
@@ -21,10 +21,26 @@ export function InvitesTabContent() {
   const [selectedInviteEmail, setSelectedInviteEmail] = useState<string | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     fetchPendingInvites();
   }, [fetchPendingInvites]);
+
+  const totalPages = Math.max(1, Math.ceil(invites.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedInvites = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return invites.slice(startIndex, startIndex + pageSize);
+  }, [invites, currentPage]);
 
   const handleRevokeClick = (inviteId: string, email: string) => {
     setSelectedInviteId(inviteId);
@@ -99,65 +115,75 @@ export function InvitesTabContent() {
           <CardTitle>Pending Invitations</CardTitle>
           <CardDescription>Invitations sent to users ({invites.length})</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading invitations...</div>
           ) : invites.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No pending invitations</div>
           ) : (
-            <ScrollArea className="w-full">
-              <div className="space-y-2">
-                {invites.map((invite) => (
-                  <div
-                    key={invite.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{invite.email}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Invited {new Date(invite.createdAt).toLocaleDateString()}
-                          </p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">Email</th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">Invited</th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">Status</th>
+                    <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {paginatedInvites.map((invite) => (
+                    <tr key={invite.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-gray-800">{invite.email}</td>
+                      <td className="px-4 py-3 text-gray-600">{new Date(invite.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">{getStatusBadge(invite.status)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          {invite.status === "PENDING" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyLink(invite.token)}
+                                className="gap-1"
+                              >
+                                <Copy className="w-4 h-4" />
+                                {copiedId === invite.token ? "Copied!" : "Copy Link"}
+                              </Button>
+                              <Link href={getInviteLink(invite.token)}>
+                                <Button variant="outline" size="sm" className="gap-1">
+                                  <ExternalLink className="w-4 h-4" />
+                                  View
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRevokeClick(invite.id, invite.email)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(invite.status)}
-                      {invite.status === "PENDING" && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCopyLink(invite.token)}
-                            className="gap-1"
-                          >
-                            <Copy className="w-4 h-4" />
-                            {copiedId === invite.token ? "Copied!" : "Copy Link"}
-                          </Button>
-                          <Link href={getInviteLink(invite.token)}>
-                            <Button variant="outline" size="sm" className="gap-1">
-                              <ExternalLink className="w-4 h-4" />
-                              View
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRevokeClick(invite.id, invite.email)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+          {!loading && invites.length > 0 && (
+            <div className="p-4 border-t">
+              <TablePaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                showWhenSinglePage
+              />
+            </div>
           )}
         </CardContent>
       </Card>

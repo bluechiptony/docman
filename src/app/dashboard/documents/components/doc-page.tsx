@@ -43,11 +43,50 @@ export default function DocumentsPage() {
   const searchParams = useSearchParams();
   const folderId = searchParams.get("folderId");
 
+  const role = user?.authentication?.role;
+  const canManage = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER";
+
   const { path, visibleItems, createFolder, openFolder, navigateToFolder, goBackTo, moveItem, addDocument } =
     useDocuments();
   const currentFolderId = path[path.length - 1]?.id ?? null;
+  const currentPathEntry = path[path.length - 1] ?? null;
   const parentFolderId = path[path.length - 1]?.id ?? undefined;
   const selectedOrgId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
+
+  const folderTitle = useMemo(() => {
+    if (!currentPathEntry) {
+      return "Documents";
+    }
+
+    if (currentPathEntry.id === null) {
+      return currentPathEntry.name;
+    }
+
+    if (currentPathEntry.folderType === "STAFF" && currentPathEntry.staff) {
+      const fullName = [
+        currentPathEntry.staff.firstName,
+        currentPathEntry.staff.otherName,
+        currentPathEntry.staff.lastName,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      if (fullName && currentPathEntry.staff.staffId) {
+        return `${fullName} (${currentPathEntry.staff.staffId})`;
+      }
+
+      if (fullName) {
+        return fullName;
+      }
+
+      if (currentPathEntry.staff.staffId) {
+        return `Staff (${currentPathEntry.staff.staffId})`;
+      }
+    }
+
+    return currentPathEntry.name;
+  }, [currentPathEntry]);
 
   useEffect(() => {
     if (!folderId) return;
@@ -56,7 +95,7 @@ export default function DocumentsPage() {
   }, [folderId, navigateToFolder, router]);
 
   useEffect(() => {
-    if (!selectedOrgId) {
+    if (!selectedOrgId || !canManage) {
       setClients([]);
       return;
     }
@@ -66,7 +105,7 @@ export default function DocumentsPage() {
       try {
         const data = await clientsApi.getByOrganization(selectedOrgId);
         if (!cancelled) {
-          setClients(data || []);
+          setClients(data?.data || []);
         }
       } catch (error) {
         console.error("Failed to load clients:", error);
@@ -79,7 +118,7 @@ export default function DocumentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedOrgId]);
+  }, [selectedOrgId, canManage]);
 
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) || null,
@@ -126,7 +165,7 @@ export default function DocumentsPage() {
     return visibleItems;
   }, [currentFolderId, selectedClientId, selectedClientFolderIds, visibleItems]);
 
-  const isApplicantFolder = currentFolder?.folderType === "APPLICANT";
+  const isStaffFolder = currentFolder?.folderType === "STAFF";
 
   // Fetch current folder details when currentFolderId changes
   useEffect(() => {
@@ -205,7 +244,7 @@ export default function DocumentsPage() {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
 
-    if (!isApplicantFolder || selectedCategoryId === "all" || item.type === "folder") {
+    if (!isStaffFolder || selectedCategoryId === "all" || item.type === "folder") {
       return true;
     }
 
@@ -219,7 +258,7 @@ export default function DocumentsPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h1 className="text-2xl font-semibold">{path.length === 0 ? "Documents" : path[path.length - 1].name}</h1>
+        <h1 className="text-2xl font-semibold">{folderTitle}</h1>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href="/help/user/documents" className="inline-flex items-center gap-2">
@@ -227,12 +266,16 @@ export default function DocumentsPage() {
               Help
             </Link>
           </Button>
-          <Button onClick={handleNewFolder} variant="outline" size="sm">
-            <FolderPlus className="mr-2 h-4 w-4" /> New Folder
-          </Button>
-          <Button onClick={() => setIsUploadOpen(true)} size="sm">
-            <Plus className="mr-2 h-4 w-4" /> Upload
-          </Button>
+          {canManage && (
+            <Button onClick={handleNewFolder} variant="outline" size="sm">
+              <FolderPlus className="mr-2 h-4 w-4" /> New Folder
+            </Button>
+          )}
+          {canManage && (
+            <Button onClick={() => setIsUploadOpen(true)} size="sm">
+              <Plus className="mr-2 h-4 w-4" /> Upload
+            </Button>
+          )}
         </div>
       </div>
 
@@ -248,22 +291,24 @@ export default function DocumentsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-          <SelectTrigger className="w-full md:w-60">
-            <SelectValue placeholder="Filter by client" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All clients</SelectItem>
-            {clients.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {canManage && (
+          <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+            <SelectTrigger className="w-full md:w-60">
+              <SelectValue placeholder="Filter by client" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All clients</SelectItem>
+              {clients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      {isApplicantFolder && (
+      {isStaffFolder && (
         <div className="space-y-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="text-sm font-medium text-gray-700">Document Categories</div>
@@ -311,7 +356,7 @@ export default function DocumentsPage() {
                     {categoryGroups.length}
                   </Badge>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Show every document in this applicant folder</p>
+                <p className="mt-1 text-xs text-muted-foreground">Show every document in this staff folder</p>
               </button>
 
               {sortedCategoryGroups.map((group) => {

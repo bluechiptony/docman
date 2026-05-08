@@ -17,12 +17,12 @@ interface CreateFolderModalProps {
   parentFolderId?: string;
 }
 
-type FolderType = "DOCUMENT" | "APPLICANT";
+type FolderType = "DOCUMENT" | "STAFF";
 
 export default function CreateFolderModal({ isOpen, onClose, onCreateFolder, parentFolderId }: CreateFolderModalProps) {
   const { user } = useAuthUser();
   const [folderName, setFolderName] = useState("");
-  const [folderType, setFolderType] = useState<FolderType>("APPLICANT");
+  const [folderType, setFolderType] = useState<FolderType>("STAFF");
   const [requiredDocsId, setRequiredDocsId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [requiredDocsConfigs, setRequiredDocsConfigs] = useState<Array<{ id: string; name: string }>>([]);
@@ -77,7 +77,7 @@ export default function CreateFolderModal({ isOpen, onClose, onCreateFolder, par
 
   const resetForm = () => {
     setFolderName("");
-    setFolderType("APPLICANT");
+    setFolderType("STAFF");
     setRequiredDocsId("");
   };
 
@@ -124,7 +124,7 @@ export default function CreateFolderModal({ isOpen, onClose, onCreateFolder, par
                 <SelectValue placeholder="Select folder type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="APPLICANT">Applicant</SelectItem>
+                <SelectItem value="STAFF">Staff</SelectItem>
                 <SelectItem value="DOCUMENT">Document</SelectItem>
               </SelectContent>
             </Select>

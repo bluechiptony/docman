@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Clock, Mail, FileText, RefreshCw, Trash2, AlertCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -315,19 +316,13 @@ export default function ExternalSharesAdminPage() {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>
-            Previous
-          </Button>
-          <span className="flex items-center px-4">
-            Page {page} of {totalPages}
-          </span>
-          <Button variant="outline" disabled={page === totalPages} onClick={() => setPage(page + 1)}>
-            Next
-          </Button>
-        </div>
-      )}
+      <TablePaginationControls
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        size="default"
+        showWhenSinglePage
+      />
 
       {/* Extend Dialog */}
       <Dialog

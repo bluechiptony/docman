@@ -26,13 +26,21 @@ export function QuickActions() {
   const dropRef = useRef<HTMLDivElement | null>(null);
   const { user } = useAuth();
   const isAdmin = user?.authentication?.role === "ADMINISTRATOR" || user?.authentication?.role === "SUPER_ADMIN";
+  const isManagerOrAdmin =
+    user?.authentication?.role === "ADMINISTRATOR" ||
+    user?.authentication?.role === "SUPER_ADMIN" ||
+    user?.authentication?.role === "MANAGER";
+
   const isManagerOrUser =
     user?.authentication?.role === "MANAGER" ||
     user?.authentication?.role === "EDITOR" ||
-    user?.authentication?.role === "VIEWER";
+    user?.authentication?.role === "VIEWER" ||
+    user?.authentication?.role === "USER" ||
+    user?.authentication?.role === "STAFF";
   const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
 
   useEffect(() => {
+    console.log("📂 Fetching organization data for ID:", user?.authentication);
     if (!organizationId) {
       return;
     }
@@ -53,7 +61,13 @@ export function QuickActions() {
   }, [organizationId]);
 
   const actions = [
-    { id: "upload", name: "Upload Document", icon: Upload, color: "bg-blue-100 text-blue-700" },
+    {
+      id: "upload",
+      name: "Upload Document",
+      icon: Upload,
+      color: "bg-blue-100 text-blue-700",
+      hidden: isManagerOrUser,
+    },
     {
       id: "folder",
       name: "Create Folder",

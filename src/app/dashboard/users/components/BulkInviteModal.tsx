@@ -62,8 +62,8 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
   const fetchClients = async (orgId: string) => {
     setLoadingClients(true);
     try {
-      const clients = await clientsApi.getByOrganization(orgId);
-      setClients(clients || []);
+      const response = await clientsApi.getByOrganization(orgId);
+      setClients(response?.data || []);
       setSelectedClientId(undefined);
     } catch (error: any) {
       console.error("Failed to fetch clients:", error);

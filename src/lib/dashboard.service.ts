@@ -19,15 +19,20 @@ export type DashboardOverview = {
  */
 export async function getDashboardOverview(
   organizationId: string,
-  days: number = 7
+  days: number = 7,
 ): Promise<DashboardOverview | null> {
   if (!organizationId) return null;
 
-  const response = await apiRequest<DashboardOverview>(() =>
-    apiClient.get(`/dashboard/overview`, { params: { organizationId, days } })
-  );
+  try {
+    const response = await apiRequest<DashboardOverview>(() =>
+      apiClient.get(`/dashboard/overview`, { params: { organizationId, days } }),
+    );
 
-  return response ?? null;
+    return response ?? null;
+  } catch (err) {
+    console.error("Error fetching dashboard overview:", err instanceof Error ? err.message : err);
+    throw err;
+  }
 }
 
 /**
@@ -39,7 +44,7 @@ export async function getRecentActivity(organizationId: string, limit: number = 
   const response = await apiRequest<ActivityLogResponse>(() =>
     apiClient.get(`/activity-log/organization/${organizationId}`, {
       params: { page: 1, limit },
-    })
+    }),
   );
 
   return response?.data ?? [];

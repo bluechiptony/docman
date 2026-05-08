@@ -69,7 +69,8 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
       } else {
         // For admins/super admins, fetch all clients in organization
         console.log("👑 User is ADMIN/SUPER_ADMIN, fetching all clients for organization:", orgId);
-        clients = await clientsApi.getByOrganization(orgId);
+        const response = await clientsApi.getByOrganization(orgId);
+        clients = response?.data || [];
         console.log("✅ All clients returned from API:", clients);
       }
 

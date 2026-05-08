@@ -6,17 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/providers/auth.provider";
-import { Building2, Users, Shield, Loader, Plus } from "lucide-react";
+import { Building2, Shield } from "lucide-react";
 import { toast } from "sonner";
 import CreateOrganizationModal from "@/components/organizations/CreateOrganizationModal";
 import AllOrganizationsView from "./AllOrganizationsView";
+import { organizationsApi } from "@/api/organizations";
 
 export default function OrganizationsSettings() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [organizations, setOrganizations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [savingOrganizationName, setSavingOrganizationName] = useState(false);
 
   const isSuperAdmin = user?.authentication?.role === "SUPER_ADMIN";
+  const isAdmin = user?.authentication?.role === "ADMINISTRATOR" || isSuperAdmin;
+  const selectedOrganizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
 
   // If super admin, show all organizations view
   if (isSuperAdmin) {
@@ -28,6 +32,50 @@ export default function OrganizationsSettings() {
       setOrganizations(user.organizations);
     }
   }, [user]);
+
+  useEffect(() => {
+    const activeOrganization = organizations.find((org) => org.id === selectedOrganizationId);
+    setOrganizationName(activeOrganization?.name ?? "");
+  }, [organizations, selectedOrganizationId]);
+
+  const handleSaveOrganizationName = async () => {
+    if (!isAdmin || !selectedOrganizationId) {
+      toast.error("Only administrators can update organization name");
+      return;
+    }
+
+    const trimmedName = organizationName.trim();
+    if (trimmedName.length < 3) {
+      toast.error("Organization name must be at least 3 characters");
+      return;
+    }
+
+    if (trimmedName.length > 70) {
+      toast.error("Organization name must not exceed 70 characters");
+      return;
+    }
+
+    const currentName = organizations.find((org) => org.id === selectedOrganizationId)?.name ?? "";
+    if (trimmedName === currentName) {
+      toast.info("No changes to save");
+      return;
+    }
+
+    setSavingOrganizationName(true);
+    try {
+      await organizationsApi.updateOrganization(selectedOrganizationId, { name: trimmedName });
+
+      setOrganizations((prev) =>
+        prev.map((org) => (org.id === selectedOrganizationId ? { ...org, name: trimmedName } : org)),
+      );
+      refreshUser();
+      toast.success("Organization name updated successfully");
+    } catch (error) {
+      toast.error("Failed to update organization name");
+    } finally {
+      setSavingOrganizationName(false);
+    }
+  };
 
   const getRoleBadgeColor = (role: string) => {
     switch (role?.toUpperCase()) {
@@ -108,6 +156,32 @@ export default function OrganizationsSettings() {
             </Card>
           ))}
         </div>
+      )}
+
+      {isAdmin && selectedOrganizationId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Organization Profile</CardTitle>
+            <CardDescription>Update the name of your currently active organization.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="organization-name">Organization Name</Label>
+              <Input
+                id="organization-name"
+                value={organizationName}
+                onChange={(event) => setOrganizationName(event.target.value)}
+                placeholder="Enter organization name"
+                disabled={savingOrganizationName}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleSaveOrganizationName} disabled={savingOrganizationName}>
+                {savingOrganizationName ? "Saving..." : "Save Organization Name"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Organization Rights Info */}
