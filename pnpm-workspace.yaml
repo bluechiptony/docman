@@ -1,0 +1,25 @@
+allowBuilds:
+  ',': true
+  '-': true
+  /: true
+  '@': true
+  '@tailwindcss/oxide': true
+  a: true
+  c: true
+  d: true
+  e: true
+  h: true
+  i: true
+  l: true
+  n: true
+  o: true
+  p: true
+  r: true
+  s: true
+  sharp: true
+  t: true
+  u: true
+  unrs-resolver: true
+  v: true
+  w: true
+  x: true
