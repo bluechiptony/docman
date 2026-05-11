@@ -49,7 +49,7 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 
 COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
@@ -60,7 +60,7 @@ WORKDIR /app
 
 ARG NEXT_PUBLIC_API_URL
 
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
