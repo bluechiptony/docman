@@ -106,7 +106,7 @@ export function InvitesTabContent() {
         </Button>
         <Button onClick={() => setInviteModalOpen(true)} className="gap-2">
           <Mail className="w-4 h-4" />
-          Invite User
+          Invite Staff
         </Button>
       </div>
 

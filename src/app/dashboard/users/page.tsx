@@ -49,7 +49,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">User Management</h1>
-          <p className="text-sm text-muted-foreground">Manage user roles and invitations</p>
+          <p className="text-sm text-muted-foreground">Manage user roles and staff invitations</p>
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/help/admin/users" className="inline-flex items-center gap-2">
@@ -69,7 +69,7 @@ export default function UsersPage() {
           )}
           <TabsTrigger value="invites" className="gap-2">
             <Mail className="w-4 h-4" />
-            Invitations
+            Staff Invitations
           </TabsTrigger>
           {!isManager && (
             <TabsTrigger value="clients" className="gap-2">
