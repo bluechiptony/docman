@@ -54,7 +54,7 @@ For each new feature or major functionality:
 - `[ ]` Upload - Document upload guide
 - `[ ]` Dashboard overview
 - `[ ]` Users - Add & manage team members
-- `[ ]` Activity Log
+- `[ ]` Activity Logs
 - `[ ]` Search & filtering
 - `[ ]` Settings - General
 - `[ ]` Settings - Appearance
