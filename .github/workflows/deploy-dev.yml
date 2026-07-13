@@ -4,20 +4,30 @@ on:
   push:
     branches:
       - dev
-  pull_request:
-    branches:
-      - dev
-    types: [closed]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment: dev
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Validate build configuration
+        env:
+          DEV_API_URL: ${{ vars.DEV_API_URL }}
+        run: |
+          if [ -z "$DEV_API_URL" ]; then
+            echo "DEV_API_URL is not configured in the dev GitHub Environment."
+            exit 1
+          fi
+          echo "Building frontend with NEXT_PUBLIC_API_URL=$DEV_API_URL"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -48,8 +58,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ vars.DEV_API_URL }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/docman-web:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/docman-web:buildcache,mode=max
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/docman-web-app:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/docman-web-app:buildcache,mode=max
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
@@ -59,39 +69,17 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            # set -e
-            # cd /srv/docman
-
-            # # Optional: Log in to registry on remote to allow pulling private images
-            # if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
-            #   docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}" || true
-            # fi
-
-            # # Ensure the latest image tag is pulled before recreating containers
-            # docker compose pull
-            # docker compose up -d --force-recreate --remove-orphans
-
-            # # Verify the currently running container image and digest
-            # echo "\nCurrent compose images:" 
-            # docker compose images || true
-            # echo "\nRunning containers:" 
-            # docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
-            # echo "\nDocman container image details:" 
-            # docker inspect docman --format 'Image ID: {{.Image}}' || true
             set -e
             cd /srv/docman
 
-            # Optional: Log in to registry on remote to allow pulling private images
             if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
-              docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}" || true
+              echo "${{ secrets.DOCKER_PASSWORD }}" | docker login \
+                --username "${{ secrets.DOCKER_USERNAME }}" \
+                --password-stdin
             fi
 
-            # Pull latest images for API and seed job
-            docker compose pull docman docman-api docman-api-seed
+            docker compose pull docman
+            docker compose up -d --no-deps --force-recreate docman
 
-            # Run migrations + seeding + start services
-            ./deploy-with-seed.sh up
-
-            # Verify running containers
-            echo "\nRunning containers:"
-            docker compose ps
+            docker compose ps docman
+            docker inspect docman --format 'Image ID: {{.Image}}'
