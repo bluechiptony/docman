@@ -34,9 +34,7 @@ jobs:
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/docman-web-app
           tags: |
-            type=ref,event=branch
-            type=sha,prefix=dev-
-            type=raw,value=dev-latest
+            type=raw,value=dev-${{ github.sha }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -44,12 +42,11 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          no-cache: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_API_URL=/api
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/docman-web-app:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/docman-web-app:buildcache,mode=max
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
@@ -62,14 +59,65 @@ jobs:
             set -e
             cd /srv/docman
 
+            IMAGE_REPOSITORY="${{ secrets.DOCKER_USERNAME }}/docman-web-app"
+            IMAGE_TAG="dev-${{ github.sha }}"
+            IMAGE="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+            DEPLOY_ENV="$HOME/.config/docman/compose.env"
+
             if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
               echo "${{ secrets.DOCKER_PASSWORD }}" | docker login \
                 --username "${{ secrets.DOCKER_USERNAME }}" \
                 --password-stdin
             fi
 
-            docker compose pull docman
-            docker compose up -d --no-deps --force-recreate docman
+            # Pull the exact image produced by this workflow run.
+            docker pull "$IMAGE"
 
-            docker compose ps docman
-            docker inspect docman --format 'Image ID: {{.Image}}'
+            # Persist the exact image selection in a user-owned Compose env file.
+            mkdir -p "$(dirname "$DEPLOY_ENV")"
+            touch "$DEPLOY_ENV"
+            set_compose_var() {
+              key="$1"
+              value="$2"
+              if grep -q "^${key}=" "$DEPLOY_ENV"; then
+                sed -i "s|^${key}=.*|${key}=${value}|" "$DEPLOY_ENV"
+              else
+                printf '%s=%s\n' "$key" "$value" >> "$DEPLOY_ENV"
+              fi
+            }
+            set_compose_var DOCMAN_WEB_IMAGE "$IMAGE_REPOSITORY"
+            set_compose_var DOCMAN_WEB_TAG "$IMAGE_TAG"
+
+            export DOCMAN_WEB_IMAGE="$IMAGE_REPOSITORY"
+            export DOCMAN_WEB_TAG="$IMAGE_TAG"
+
+            docker compose --env-file "$DEPLOY_ENV" -f docker-compose.yml up \
+              -d --no-deps --force-recreate --pull never docman
+
+            expected_id=$(docker image inspect "$IMAGE" --format '{{.Id}}')
+            running_id=$(docker inspect docman --format '{{.Image}}')
+            if [ "$running_id" != "$expected_id" ]; then
+              echo "Expected image $expected_id but container uses $running_id"
+              docker compose --env-file "$DEPLOY_ENV" -f docker-compose.yml stop docman
+              exit 1
+            fi
+
+            # Fail closed if the frontend does not serve its expected root page.
+            status=""
+            for attempt in 1 2 3 4 5 6; do
+              status=$(curl -sS -o /dev/null -w '%{http_code}' \
+                http://127.0.0.1:3000/ || true)
+              [ "$status" = "200" ] && break
+              echo "Attempt $attempt: frontend returned HTTP ${status:-unreachable}"
+              sleep 5
+            done
+
+            if [ "$status" != "200" ]; then
+              echo "Frontend verification failed; stopping the container."
+              docker compose --env-file "$DEPLOY_ENV" -f docker-compose.yml logs --tail=100 docman || true
+              docker compose --env-file "$DEPLOY_ENV" -f docker-compose.yml stop docman
+              exit 1
+            fi
+
+            docker compose --env-file "$DEPLOY_ENV" -f docker-compose.yml ps docman
+            echo "Deployed $IMAGE ($running_id)"
