@@ -213,6 +213,7 @@ export default function ClientDetailPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Staff Name</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Email Address</th>
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Staff ID</th>
                 </tr>
               </thead>
@@ -232,6 +233,7 @@ export default function ClientDetailPage() {
                           onClick={() => router.push(`/dashboard/documents?folderId=${folder.id}`)}
                         >
                           <td className="px-4 py-3 font-medium text-gray-800">{folder.name}</td>
+                          <td className="px-4 py-3 font-medium text-gray-800">{folder.staff?.emailAddress}</td>
                           <td className="px-4 py-3 text-gray-600 text-xs font-mono">{folder.staff?.staffId}</td>
                         </tr>
                       </ContextMenuTrigger>
