@@ -70,7 +70,7 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
             cfg.documentTypes.map((d) => ({
               id: d.id,
               isRequired: true, // Default to required since we don't have this info from config yet
-            }))
+            })),
           );
           setDocTypes(dt);
         }
@@ -99,9 +99,7 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
           ? await documentTypesApi.searchByName(organizationId, searchTerm)
           : await documentTypesApi.getByOrganization(organizationId);
         if (!cancelled) setDocTypes(data);
-      } catch (e) {
-        console.error("Failed to search document types", e);
-      }
+      } catch (e) {}
     }
 
     const timeoutId = setTimeout(searchDocTypes, 300);
@@ -210,7 +208,6 @@ const FolderRequiredDocumentsDetailPage: React.FC = () => {
                 <CommandInput
                   placeholder="Search document types..."
                   onValueChange={(value) => {
-                    console.log("Search term:", value);
                     setSearchTerm(value);
                   }}
                 />

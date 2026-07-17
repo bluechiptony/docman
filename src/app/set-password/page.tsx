@@ -61,7 +61,6 @@ export default function SetPasswordComponent() {
         router.push("/login");
       }, 1500);
     } catch (error: any) {
-      console.error("Error:", error);
       toast.error(error.response?.data?.message || "Failed to reset password. Please try again.");
     } finally {
       setLoading(false);

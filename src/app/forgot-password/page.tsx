@@ -28,7 +28,6 @@ export default function ForgotPasswordComponent() {
       toast.success(response.data.message || "Password reset link sent!");
       setSubmitted(true);
     } catch (error: any) {
-      console.error("Error:", error);
       toast.error(error.response?.data?.message || "Failed to send reset link. Please try again.");
     } finally {
       setLoading(false);

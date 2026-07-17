@@ -229,7 +229,6 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
           toast.success(`${file.name} uploaded successfully!`, { id: toastId });
           onUploadComplete?.(file.name, uploadedUrl);
         } catch (err) {
-          console.error(err);
           toast.error(`Failed to upload ${file.name}`, { id: toastId });
         }
       }),

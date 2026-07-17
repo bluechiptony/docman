@@ -38,7 +38,6 @@ export default function UserSettings() {
   };
 
   const handleSave = () => {
-    console.log("User settings saved:", { allowSignup, require2FA, defaultRole, roles });
     alert("User and access settings saved!");
   };
 

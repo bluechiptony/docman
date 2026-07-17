@@ -34,7 +34,6 @@ export async function handleFileUpload(file: File) {
     const completed = await completeUpload(fileKey);
     return completed;
   } catch (err: any) {
-    console.error("Upload error:", err);
     throw new Error(err.response?.data?.message || err.message);
   }
 }

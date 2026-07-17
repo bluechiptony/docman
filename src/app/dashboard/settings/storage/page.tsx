@@ -22,7 +22,6 @@ export default function StorageSettings() {
   };
 
   const handleSave = () => {
-    console.log("Saved storage settings:", settings);
     alert("Storage settings saved successfully!");
   };
 

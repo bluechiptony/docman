@@ -41,7 +41,6 @@ export default function DocumentViewerModal({
         const preview = await getDocumentPreviewUrl(documentId);
         setPreviewUrl(preview.url);
       } catch (error: any) {
-        console.error("Failed to fetch document:", error);
         toast.error("Failed to load document");
       } finally {
         setLoading(false);
@@ -68,7 +67,6 @@ export default function DocumentViewerModal({
       document.body.removeChild(link);
       toast.success("Download started");
     } catch (error) {
-      console.error("Download failed:", error);
       toast.error("Failed to download document");
     }
   };

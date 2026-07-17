@@ -42,46 +42,34 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
   const organizationId = user?.selectedOrganization?.id || "";
 
   // Log every render to confirm component is alive
-  useEffect(() => {
-    console.log("🎯 InviteUserModal rendered, open:", open, "organizationId:", organizationId);
-  });
+  useEffect(() => {});
 
   useEffect(() => {
-    console.log("🔄 useEffect [open, organizationId] triggered, open:", open, "organizationId:", organizationId);
     if (open && organizationId) {
-      console.log("📞 Calling fetchClients with organizationId:", organizationId);
       fetchClients(organizationId);
     }
   }, [open, organizationId]);
 
   const fetchClients = async (orgId: string) => {
-    console.log("🚀 fetchClients started with orgId:", orgId);
     setLoadingClients(true);
     try {
       let clients: Client[] = [];
 
       if (authUser?.authentication?.role === "MANAGER") {
         // For managers, fetch only assigned clients
-        console.log("👤 User is MANAGER, fetching assigned clients for userId:", authUser.id);
+
         const assignedResponse = await apiClient.get(`/user/${authUser.id}/clients`);
         clients = assignedResponse.data || [];
-        console.log("✅ Assigned clients returned from API:", clients);
       } else {
         // For admins/super admins, fetch all clients in organization
-        console.log("👑 User is ADMIN/SUPER_ADMIN, fetching all clients for organization:", orgId);
+
         const response = await clientsApi.getByOrganization(orgId);
         clients = response?.data || [];
-        console.log("✅ All clients returned from API:", clients);
       }
 
       setClients(clients);
       setSelectedClientId(undefined); // Reset client selection when org changes
     } catch (error: any) {
-      console.error("❌ Failed to fetch clients:", error);
-      console.error("❌ Error status:", error.response?.status);
-      console.error("❌ Error data:", error.response?.data);
-      console.error("❌ Error message:", error.message);
-      console.error("❌ Error config:", error.config);
       // Don't show error toast for clients - it's optional
       setClients([]);
     } finally {
@@ -125,7 +113,6 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
       onClose();
       onInviteSuccess?.();
     } catch (error: any) {
-      console.error("Failed to send invite:", error);
       const message = error.response?.data?.message || "Failed to send invitation. Please try again.";
       toast.error(message);
     } finally {

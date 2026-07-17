@@ -42,12 +42,9 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
 
     if (status === 401) {
-      console.log("🔒 Unauthorized:", error.response);
-      console.warn("⚠️ Unauthorized: Token may have expired");
       // Optionally redirect to login or trigger refresh
       // window.location.href = "/login";
     } else if (status >= 500) {
-      console.error("💥 Server error:", error.response?.data || error.message);
     }
 
     return Promise.reject(error);
@@ -62,7 +59,6 @@ export async function apiRequest<T>(fn: () => Promise<{ data: T }>): Promise<T> 
     const res = await fn();
     return res.data;
   } catch (err: any) {
-    console.error("❌ API request failed:", err.message || err);
     throw err;
   }
 }

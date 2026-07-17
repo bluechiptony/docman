@@ -34,7 +34,6 @@ const extractUserFromToken = (token: string): User | null => {
     if (!candidate || typeof candidate !== "object") return null;
     return candidate as User;
   } catch (error) {
-    console.error("Invalid token:", error);
     return null;
   }
 };
@@ -57,7 +56,6 @@ const resolveSelectedOrganization = (
 const buildOrganizationsForUser = async (userData: User): Promise<OrganizationOption[]> => {
   if (userData.authentication?.role === "SUPER_ADMIN") {
     const organizations = await organizationsApi.getAllOrganizationsForAdmin();
-    console.log("Getting organization for super admin", JSON.stringify(organizations));
 
     return organizations.map((org) => ({
       id: org.id,
@@ -119,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           selectedOrganization,
         });
       } catch (error) {
-        console.error("Failed to load organizations:", error);
         const fallbackOrganizations = extractedUser.organizations ?? [];
         const selectedOrganization = resolveSelectedOrganization(fallbackOrganizations, storedOrgId);
         setUser({
@@ -162,14 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         organizations = await buildOrganizationsForUser(decodedUser);
-        // console.log("Orgsn:  ", organizations);
+
         if (decodedUser.authentication?.role === "SUPER_ADMIN") {
-          // console.log("SUPER ADMIN ORGS: ", organizations);
           decodedUser.organizations = organizations;
         }
-      } catch (error) {
-        console.error("Failed to load organizations after login:", error);
-      }
+      } catch (error) {}
 
       const selectedOrganization = resolveSelectedOrganization(organizations, storedOrgId);
 
@@ -192,7 +186,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push("/dashboard");
       }
     } catch (error: any) {
-      console.error("Login failed:", error);
       const errorMessage = error.response?.data?.message || "Login failed. Please try again.";
       toast.error(errorMessage);
       throw error;
@@ -227,7 +220,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           })
           .catch((error) => {
-            console.error("Failed to refresh organizations:", error);
             const fallbackOrganizations = extractedUser.organizations ?? [];
             const selectedOrganization = resolveSelectedOrganization(fallbackOrganizations, storedOrgId);
             setUser({

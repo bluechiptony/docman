@@ -30,7 +30,6 @@ export async function getDashboardOverview(
 
     return response ?? null;
   } catch (err) {
-    console.error("Error fetching dashboard overview:", err instanceof Error ? err.message : err);
     throw err;
   }
 }

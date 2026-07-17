@@ -122,7 +122,6 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
           setPermissions(permissionsResult.value);
         }
       } catch (e) {
-        console.error("Failed to load document data", e);
         toast.error("Failed to load document details");
       } finally {
         setLoading(false);

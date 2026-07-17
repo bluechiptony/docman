@@ -98,7 +98,6 @@ export default function DashboardPage() {
         setDocTypeData(assignColors(overview.documentTypeBreakdown));
       } catch (err) {
         if (!cancelled) {
-          console.error("Dashboard overview error:", err);
           const errorMessage = err instanceof Error ? err.message : "Failed to load dashboard stats";
           setOverviewError(errorMessage);
         }

@@ -16,7 +16,6 @@ export default function AppearanceSettings() {
 
   const handleSave = () => {
     alert("Appearance settings saved!");
-    console.log({ theme, accent, fontScale, compactMode });
   };
 
   return (

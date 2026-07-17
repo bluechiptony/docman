@@ -72,7 +72,6 @@ export default function DocumentTypesSettings() {
       setDocumentTypes(types as unknown as DocumentType[]);
       setCategories(cats);
     } catch (error) {
-      console.error("Error fetching data:", error);
       toast.error("Failed to load document types or categories");
     } finally {
       setLoading(false);
@@ -170,7 +169,6 @@ export default function DocumentTypesSettings() {
       handleCloseDialog();
       fetchData();
     } catch (error: any) {
-      console.error("Error saving document type:", error);
       const message = error.response?.data?.message || "Failed to save document type";
       toast.error(message);
     }
@@ -186,7 +184,6 @@ export default function DocumentTypesSettings() {
       toast.success("Document type deleted successfully");
       fetchData();
     } catch (error: any) {
-      console.error("Error deleting document type:", error);
       const message = error.response?.data?.message || "Failed to delete document type";
       toast.error(message);
     }

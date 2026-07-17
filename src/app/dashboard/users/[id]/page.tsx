@@ -22,13 +22,6 @@ export default async function UserPage({ params }: PageProps) {
   const isManager = user?.authentication?.role === "MANAGER";
   const userOrganization = user?.organizations?.[0];
 
-  console.log("User profile debug:", {
-    userId: user?.id,
-    role: user?.authentication?.role,
-    isManager,
-    hasOrganization: !!userOrganization,
-  });
-
   return (
     <div className="p-6 space-y-6">
       <div>

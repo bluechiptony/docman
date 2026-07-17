@@ -20,7 +20,6 @@ export default function GeneralSettings() {
 
   const handleSave = () => {
     toast.success("General settings saved successfully!");
-    console.log("Saved General Settings:", settings);
   };
 
   const handleCancel = () => {

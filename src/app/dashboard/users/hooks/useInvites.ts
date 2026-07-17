@@ -26,7 +26,6 @@ export function useInvites() {
       const response = await apiClient.get("/auth/invites");
       setInvites(response.data || []);
     } catch (error: any) {
-      console.error("Failed to fetch invites:", error);
       toast.error("Failed to load pending invites");
     } finally {
       setLoading(false);
@@ -42,13 +41,12 @@ export function useInvites() {
         await fetchPendingInvites();
         return response.data;
       } catch (error: any) {
-        console.error("Failed to invite user:", error);
         const message = error.response?.data?.message || "Failed to send invitation";
         toast.error(message);
         throw error;
       }
     },
-    [fetchPendingInvites]
+    [fetchPendingInvites],
   );
 
   const revokeInvite = useCallback(
@@ -58,12 +56,11 @@ export function useInvites() {
         toast.success("Invitation revoked");
         await fetchPendingInvites();
       } catch (error: any) {
-        console.error("Failed to revoke invite:", error);
         toast.error("Failed to revoke invitation");
         throw error;
       }
     },
-    [fetchPendingInvites]
+    [fetchPendingInvites],
   );
 
   return {

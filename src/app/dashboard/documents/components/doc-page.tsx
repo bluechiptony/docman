@@ -45,6 +45,7 @@ export default function DocumentsPage() {
 
   const role = user?.authentication?.role;
   const canManage = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER";
+  const canManageUploads = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER" || role === "USER";
 
   const { path, visibleItems, createFolder, openFolder, navigateToFolder, goBackTo, moveItem, addDocument } =
     useDocuments();
@@ -108,7 +109,6 @@ export default function DocumentsPage() {
           setClients(data?.data || []);
         }
       } catch (error) {
-        console.error("Failed to load clients:", error);
         if (!cancelled) {
           toast.error("Failed to load clients");
         }
@@ -118,7 +118,7 @@ export default function DocumentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedOrgId, canManage]);
+  }, [selectedOrgId, canManage, canManageUploads]);
 
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) || null,
@@ -271,7 +271,7 @@ export default function DocumentsPage() {
               <FolderPlus className="mr-2 h-4 w-4" /> New Folder
             </Button>
           )}
-          {canManage && (
+          {canManageUploads && (
             <Button onClick={() => setIsUploadOpen(true)} size="sm">
               <Plus className="mr-2 h-4 w-4" /> Upload
             </Button>
@@ -408,11 +408,8 @@ export default function DocumentsPage() {
               onFolderOpen={openFolder}
               onMove={moveItem}
               onDelete={handleDelete}
-              onRename={(id: string, newName: string) => {
-                console.log("Rename", id, newName);
-              }}
+              onRename={(id: string, newName: string) => {}}
               onShare={(id: string) => {
-                console.log("Share", id);
                 return "";
               }}
               onOpenCreateFolder={() => setIsCreateFolderOpen(true)}

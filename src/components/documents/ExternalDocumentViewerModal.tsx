@@ -41,7 +41,6 @@ export default function ExternalDocumentViewerModal({
         const preview = await getDocumentPreviewUrl(documentId, 600);
         setPreviewUrl(preview.url);
       } catch (error: any) {
-        console.error("Failed to fetch preview URL:", error);
         toast.error("Failed to load document preview");
       } finally {
         setLoading(false);

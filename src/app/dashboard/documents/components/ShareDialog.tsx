@@ -59,7 +59,6 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
         setPublicPermission(pub.permission || "view");
         setPublicLink(pub.link || "");
       } catch (e) {
-        console.error(e);
         toast.error("Failed to load sharing info");
       } finally {
         setLoadingSharedInfo(false);
@@ -76,7 +75,6 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
         try {
           if (active) setUsersLoading(true);
           const results = await searchUsers(q);
-          console.log(results);
 
           if (active) setUsers(results);
         } catch (e) {
@@ -175,7 +173,7 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
   const handlePermissionChange = async (userId: string, newPermission: string) => {
     const prevPerm = sharedUsers.find((u) => u.id === userId)?.permission as "view" | "edit" | undefined;
     setSharedUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, permission: newPermission as "view" | "edit" } : u))
+      prev.map((u) => (u.id === userId ? { ...u, permission: newPermission as "view" | "edit" } : u)),
     );
     setUpdatingUserId(userId);
     try {

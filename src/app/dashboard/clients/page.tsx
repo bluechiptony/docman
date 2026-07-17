@@ -84,7 +84,6 @@ export default function ClientsPage() {
           );
         }
       } catch (error) {
-        console.error("Failed to load clients data:", error);
         if (!cancelled) {
           toast.error("Failed to load clients");
         }
@@ -105,9 +104,7 @@ export default function ClientsPage() {
       const clientData = await clientsApi.getByOrganization(organizationId, page, perPage);
       setClients(clientData?.data || []);
       setTotal(clientData?.pagination?.total || 0);
-    } catch (error) {
-      console.error("Failed to refresh clients:", error);
-    }
+    } catch (error) {}
   };
 
   const handleCreateClient = async () => {
@@ -135,7 +132,6 @@ export default function ClientsPage() {
       }
       setPage(1);
     } catch (error: any) {
-      console.error("Failed to create client:", error);
       const message = error.response?.data?.message || "Failed to create client";
       toast.error(message);
     } finally {
@@ -165,7 +161,6 @@ export default function ClientsPage() {
       setSelectedClient(null);
       await refreshClients();
     } catch (error: any) {
-      console.error("Failed to update folders:", error);
       const message = error.response?.data?.message || "Failed to update folders";
       toast.error(message);
     } finally {

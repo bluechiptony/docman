@@ -26,7 +26,6 @@ export default function LoginComponent() {
       await login(values.emailAddress, values.password);
     } catch (error) {
       // Error is handled in the auth provider with toast
-      console.error("Login error:", error);
     }
   }
 

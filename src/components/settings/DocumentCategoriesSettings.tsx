@@ -52,7 +52,6 @@ export default function DocumentCategoriesSettings() {
       const result = await documentCategoriesApi.getByOrganization(organizationId);
       setCategories(result);
     } catch (error) {
-      console.error("Error fetching categories:", error);
       toast.error("Failed to load document categories");
     } finally {
       setLoading(false);
@@ -120,7 +119,6 @@ export default function DocumentCategoriesSettings() {
       handleCloseDialog();
       fetchCategories();
     } catch (error: any) {
-      console.error("Error saving category:", error);
       const message = error.response?.data?.message || "Failed to save category";
       toast.error(message);
     }
@@ -142,7 +140,6 @@ export default function DocumentCategoriesSettings() {
       toast.success("Category deleted successfully");
       fetchCategories();
     } catch (error: any) {
-      console.error("Error deleting category:", error);
       const message = error.response?.data?.message || "Failed to delete category";
       toast.error(message);
     }

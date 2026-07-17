@@ -48,7 +48,6 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
       setAvailableClients(unassigned);
       setSelectedClientId("");
     } catch (error: any) {
-      console.error("Failed to fetch clients:", error);
       toast.error("Failed to load clients");
     } finally {
       setLoading(false);
@@ -67,7 +66,6 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
       toast.success("Client assigned successfully");
       await fetchClientsData();
     } catch (error: any) {
-      console.error("Failed to assign client:", error);
       const message = error.response?.data?.message || "Failed to assign client";
       toast.error(message);
     } finally {
@@ -83,7 +81,6 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
       toast.success("Client removed successfully");
       await fetchClientsData();
     } catch (error: any) {
-      console.error("Failed to remove client:", error);
       const message = error.response?.data?.message || "Failed to remove client";
       toast.error(message);
     }

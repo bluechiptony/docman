@@ -68,7 +68,6 @@ export function ClientListTab() {
               clients: clientsResponse.data || [],
             };
           } catch (error) {
-            console.error(`Failed to fetch clients for manager ${manager.id}:`, error);
             return {
               manager,
               clients: [],
@@ -82,7 +81,6 @@ export function ClientListTab() {
       const clientsResponse = await apiClient.get(`/clients?organizationId=${user.selectedOrganization.id}`);
       setAvailableClients(clientsResponse.data?.data || []);
     } catch (error: any) {
-      console.error("Failed to fetch managers and clients:", error);
       toast.error("Failed to load data");
     } finally {
       setLoading(false);
@@ -103,7 +101,6 @@ export function ClientListTab() {
       setSelectedClientId("");
       await fetchData();
     } catch (error: any) {
-      console.error("Failed to assign client:", error);
       const message = error.response?.data?.message || "Failed to assign client";
       toast.error(message);
     } finally {
@@ -117,7 +114,6 @@ export function ClientListTab() {
       toast.success("Client removed successfully");
       await fetchData();
     } catch (error: any) {
-      console.error("Failed to remove client:", error);
       toast.error(error.response?.data?.message || "Failed to remove client");
     }
   };

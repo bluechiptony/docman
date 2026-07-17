@@ -143,7 +143,6 @@ export default function ModerationDashboard() {
 
       setManagerFolderIds(folderIds);
     } catch (error) {
-      console.error("Failed to fetch manager folders:", error);
     } finally {
       setManagerFoldersLoaded(true);
     }
@@ -163,9 +162,7 @@ export default function ModerationDashboard() {
       });
 
       setStats(response.data);
-    } catch (error) {
-      console.error("Failed to fetch review statistics:", error);
-    }
+    } catch (error) {}
   };
 
   const fetchReviews = async (status: string = "PENDING") => {
@@ -190,7 +187,6 @@ export default function ModerationDashboard() {
       setReviews(response.data?.data || []);
       setTotal(response.data?.pagination?.total || 0);
     } catch (error: unknown) {
-      console.error("Failed to fetch reviews:", error);
       toast.error("Failed to load reviews");
     } finally {
       setLoading(false);
@@ -199,8 +195,6 @@ export default function ModerationDashboard() {
 
   const handleApprove = async () => {
     if (!selectedReview) return;
-
-    console.log("Approving review by user:", user.id);
 
     try {
       setLoading(true);

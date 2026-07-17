@@ -44,7 +44,6 @@ export default function CreateFolderModal({ isOpen, onClose, onCreateFolder, par
           setRequiredDocsConfigs(configs.map((c) => ({ id: c.id, name: c.name })));
         }
       } catch (error) {
-        console.error("Failed to fetch required documents configs:", error);
       } finally {
         if (!cancelled) setLoadingConfigs(false);
       }
@@ -68,7 +67,6 @@ export default function CreateFolderModal({ isOpen, onClose, onCreateFolder, par
       resetForm();
       onClose();
     } catch (error) {
-      console.error("Error creating folder:", error);
       toast.error("Failed to create folder");
     } finally {
       setIsLoading(false);

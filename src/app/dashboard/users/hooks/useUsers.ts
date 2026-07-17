@@ -60,7 +60,6 @@ export function useUsers(searchQuery: string = "") {
       setUsers(response.data?.data || []);
       setTotal(response.data?.pagination?.total || 0);
     } catch (err: any) {
-      console.error("Failed to fetch users:", err);
       toast.error(err.response?.data?.message || "Failed to load users");
     } finally {
       setLoading(false);
@@ -74,7 +73,6 @@ export function useUsers(searchQuery: string = "") {
       toast.success("Role updated successfully");
       return true;
     } catch (err: any) {
-      console.error("Failed to update role:", err);
       toast.error(err.response?.data?.message || "Failed to update role");
       return false;
     }
@@ -89,7 +87,6 @@ export function useUsers(searchQuery: string = "") {
       toast.success("User deactivated");
       return true;
     } catch (err: any) {
-      console.error("Failed to deactivate user:", err);
       toast.error(err.response?.data?.message || "Failed to deactivate user");
       return false;
     }
@@ -101,7 +98,6 @@ export function useUsers(searchQuery: string = "") {
       setUsers((prev) => [...prev, response.data]);
       toast.success(`Invitation sent to ${email}`);
     } catch (err: any) {
-      console.error("Failed to send invitation:", err);
       toast.error(err.response?.data?.message || "Failed to send invitation");
     }
   };
@@ -114,7 +110,6 @@ export function useUsers(searchQuery: string = "") {
       );
       toast.success("Role updated");
     } catch (err: any) {
-      console.error("Failed to update role:", err);
       toast.error(err.response?.data?.message || "Failed to update role");
     }
   };

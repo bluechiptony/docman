@@ -44,7 +44,6 @@ export function DocumentTypeCheck() {
           setShowModal(true);
         }
       } catch (error) {
-        console.error("Failed to check document types:", error);
         // Don't show error toast - fail silently to avoid disrupting user experience
       } finally {
         if (!cancelled) {
@@ -87,7 +86,6 @@ export function DocumentTypeCheck() {
       setName("");
       setDescription("");
     } catch (error: any) {
-      console.error("Failed to create document type:", error);
       const errorMsg = error.response?.data?.message || "Failed to create document type";
       toast.error(errorMsg);
     } finally {

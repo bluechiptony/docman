@@ -20,7 +20,6 @@ export default function GeneralSettings() {
   };
 
   const handleSave = () => {
-    console.log("Saved settings:", settings);
     alert("Settings saved successfully!");
   };
 

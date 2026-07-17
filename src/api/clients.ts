@@ -3,6 +3,8 @@ import { apiClient, apiRequest } from "./client";
 export interface ClientFolder {
   id: string;
   name: string;
+  staffId: string;
+  staff: any;
 }
 
 export interface Client {

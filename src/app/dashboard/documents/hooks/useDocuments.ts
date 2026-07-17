@@ -85,7 +85,6 @@ export function useDocuments() {
         let endpoint = `/folders/get/all/root`;
 
         if (parentId) {
-          console.log(`parent id ${parentId}`);
           endpoint = `/folders/get/all/parent?parent=${parentId}`;
         } else if (!isSuperAdmin && selectedOrgId) {
           // Non-super admins must provide their selected organization
@@ -96,11 +95,6 @@ export function useDocuments() {
         const response = await apiClient.get(endpoint);
         // Filter items by parentId if provided
         const items = response.data || [];
-        console.log("ROLE");
-        console.log(selectedOrgId);
-        console.log(user?.authentication?.role);
-
-        console.log(response.data);
 
         const filtered = parentId
           ? items.filter((item: DocumentItem) => item.parentId === parentId)
@@ -108,7 +102,6 @@ export function useDocuments() {
 
         setDocuments(items); // Store all items for internal filtering
       } catch (error: any) {
-        console.error("Failed to fetch documents:", error);
         toast.error(error.response?.data?.message || "Failed to load documents");
       } finally {
         setLoading(false);
@@ -176,7 +169,6 @@ export function useDocuments() {
         setDocuments((prev) => [...prev, newFolder]);
         toast.success(`Folder "${name}" created successfully`);
       } catch (error: any) {
-        console.error("Failed to create folder:", error);
         toast.error(error.response?.data?.message || "Failed to create folder");
         throw error;
       }
@@ -393,7 +385,6 @@ export function useDocuments() {
       });
       return res.data; // { uploadUrl, publicUrl, fields }
     } catch (err: any) {
-      console.error("❌ Presign failed:", err.message);
       toast.error(`Failed to prepare upload for ${file.name}`);
       throw err;
     }
@@ -410,7 +401,6 @@ export function useDocuments() {
         },
       });
     } catch (err: any) {
-      console.error("❌ Upload failed:", err.message);
       toast.error(`Upload failed for ${file.name}`);
       throw err;
     }
@@ -440,13 +430,11 @@ export function useDocuments() {
             onProgress?.(percent);
           },
         });
-        console.log("✅ Cloudinary upload response:", response.data);
 
         // Return the Cloudinary response which includes secure_url, public_id, resource_type, etc.
         return response.data;
       }
     } catch (err: any) {
-      console.error("❌ Upload failed:", err.message);
       toast.error(`Upload failed for ${file.name}`);
       throw err;
     }
@@ -482,8 +470,6 @@ export function useDocuments() {
         mimeType: metadata.mimeType,
       });
     } catch (err: any) {
-      console.error("❌ Complete upload failed:", err.message);
-
       // Show specific error message from backend
       const errorMessage = err.response?.data?.message || "Failed to finalize upload";
       toast.error(errorMessage);

@@ -19,6 +19,8 @@ import { useClientPageAccess } from "@/hooks/useClientPageAccess";
 interface Folder {
   id: string;
   name: string;
+  staffId: string;
+  staff: any;
 }
 
 interface User {
@@ -107,7 +109,6 @@ export default function ClientDetailPage() {
           setUsersTotal(managersData?.pagination?.total || 0);
         }
       } catch (error) {
-        console.error("Failed to load client detail:", error);
         if (!cancelled) {
           toast.error("Failed to load client");
           router.push("/dashboard/clients");
@@ -211,8 +212,8 @@ export default function ClientDetailPage() {
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Folder Name</th>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Folder ID</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Staff Name</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Staff ID</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -231,7 +232,7 @@ export default function ClientDetailPage() {
                           onClick={() => router.push(`/dashboard/documents?folderId=${folder.id}`)}
                         >
                           <td className="px-4 py-3 font-medium text-gray-800">{folder.name}</td>
-                          <td className="px-4 py-3 text-gray-600 text-xs font-mono">{folder.id}</td>
+                          <td className="px-4 py-3 text-gray-600 text-xs font-mono">{folder.staff?.staffId}</td>
                         </tr>
                       </ContextMenuTrigger>
                       <ContextMenuContent>

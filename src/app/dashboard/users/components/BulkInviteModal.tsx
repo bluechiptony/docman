@@ -66,7 +66,6 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
       setClients(response?.data || []);
       setSelectedClientId(undefined);
     } catch (error: any) {
-      console.error("Failed to fetch clients:", error);
       setClients([]);
     } finally {
       setLoadingClients(false);
@@ -169,7 +168,6 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
         toast.warning(`${response.data.invalidEmails.length} email(s) have issues`);
       }
     } catch (error: any) {
-      console.error("Validation failed:", error);
       const message = error.response?.data?.message || "Failed to validate emails";
       toast.error(message);
     } finally {
@@ -206,7 +204,6 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
       onClose();
       onInviteSuccess?.();
     } catch (error: any) {
-      console.error("Failed to send invites:", error);
       const message = error.response?.data?.message || "Failed to send invitations";
       toast.error(message);
     } finally {

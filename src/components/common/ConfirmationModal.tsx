@@ -42,7 +42,6 @@ export function ConfirmationModal({
       onClose();
     } catch (error: unknown) {
       // Error handling is done by caller
-      console.error("Confirmation action failed:", error);
     }
   };
 

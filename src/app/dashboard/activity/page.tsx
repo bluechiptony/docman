@@ -69,7 +69,6 @@ export default function ActivityPage() {
 
         setTotal(response?.total || 0);
       } catch (error) {
-        console.error("Failed to fetch activity logs:", error);
         toast.error("Failed to load activity logs");
         setLogs([]);
         setTotal(0);

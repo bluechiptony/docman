@@ -165,7 +165,6 @@ export function DocumentsGrid({
 
       handleOpenDocDetails(docId);
     } catch (error) {
-      console.error("Failed to check document permissions:", error);
       toast.error("Failed to verify permissions");
     }
   };

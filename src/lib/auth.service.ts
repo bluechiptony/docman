@@ -11,10 +11,8 @@ export async function login(data: { emailAddress: string; password: string }) {
       password: data.password,
     });
 
-    console.log(response);
     return response;
   } catch (error: any) {
-    console.error("Login failed:", error.response?.data || error.message);
     throw error;
   }
 }

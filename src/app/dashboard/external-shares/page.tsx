@@ -88,9 +88,7 @@ export default function ExternalSharesAdminPage() {
     try {
       const response = await apiClient.get("/admin/external-shares/stats");
       setStats(response.data);
-    } catch (err) {
-      console.error("Failed to fetch stats", err);
-    }
+    } catch (err) {}
   };
 
   useEffect(() => {

@@ -49,7 +49,6 @@ export default function ShareModal({ open, onClose, documentName, documentId }: 
       });
       setUsers(response.data || []);
     } catch (error) {
-      console.error("Failed to search users:", error);
       setUsers([]);
     } finally {
       setSearching(false);

@@ -81,7 +81,6 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
           : await documentTypesApi.getByOrganization(organizationId);
         if (!cancelled) setDocTypes(data);
       } catch (e) {
-        console.error("Failed to search document types", e);
       } finally {
         if (!cancelled) setLoadingDocTypes(false);
       }
@@ -132,18 +131,11 @@ const CreateFolderRequiredDocumentsModal: React.FC<Props> = ({ isOpen, onClose, 
       setError("Please select at least one document type");
       return;
     }
-    console.log("Org", user?.organizations);
 
     if (!user?.organizations?.[0]?.id) {
       setError("Organization not found");
       return;
     }
-
-    console.log({
-      name,
-      documentTypeIds: selectedDocuments,
-      organizationId: user.organizations[0]?.id,
-    });
 
     setLoading(true);
     setError(null);

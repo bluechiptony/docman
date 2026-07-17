@@ -40,7 +40,6 @@ export function QuickActions() {
   const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
 
   useEffect(() => {
-    console.log("📂 Fetching organization data for ID:", user?.authentication);
     if (!organizationId) {
       return;
     }
@@ -176,7 +175,6 @@ export function QuickActions() {
 
       setTimeout(() => close(), 1000);
     } catch (error: any) {
-      console.error("Upload failed:", error);
       setUploadError("File upload failed. Please try again.");
     } finally {
       setIsUploading(false);

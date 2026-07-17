@@ -99,7 +99,6 @@ export function CreateUserModal({ open, onClose, onUserCreated }: CreateUserModa
       onClose();
       onUserCreated?.();
     } catch (error: any) {
-      console.error("Failed to create user:", error);
       const message = error.response?.data?.message || "Failed to create user. Please try again.";
       toast.error(message);
     } finally {
