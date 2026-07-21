@@ -212,14 +212,16 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
               ) : null}
             </div>
             <div className="mt-2 flex shrink-0 items-center justify-center gap-2 sm:mt-0">
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => setExshareOpen(true)}
-                disabled={!doc?.id}
-              >
-                Share via Email (Exshare)
-              </Button>
+              {!hasDetailsOnly && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => setExshareOpen(true)}
+                  disabled={!doc?.id}
+                >
+                  Share via Email (Exshare)
+                </Button>
+              )}
               <Button
                 type="button"
                 size="icon"
@@ -358,7 +360,9 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
       {doc && <ShareDialog open={showShareModal} onClose={() => setShowShareModal(false)} documentId={doc.id} />}
 
       {/* Exshare Dialog */}
-      <ExshareDialog open={exshareOpen} onClose={() => setExshareOpen(false)} documentId={doc?.id ?? null} />
+      {!hasDetailsOnly && (
+        <ExshareDialog open={exshareOpen} onClose={() => setExshareOpen(false)} documentId={doc?.id ?? null} />
+      )}
     </>
   );
 }

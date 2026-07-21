@@ -78,6 +78,8 @@ export function DocumentsGrid({
   onOpenUpload,
 }: Props) {
   const { user } = useAuth();
+  const role = user?.authentication?.role;
+  const canUseExshare = role !== "USER" && role !== "STAFF";
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null);
 
@@ -229,7 +231,6 @@ export function DocumentsGrid({
   const handleDragLeave = () => setHoveredFolder(null);
 
   // --- Empty state ---
-  const role = user?.authentication?.role;
   const canManage = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER";
 
   const renderGridActionsMenu = () => (
@@ -431,19 +432,21 @@ export function DocumentsGrid({
                       <Share2 className="w-4 h-4 mr-2" /> Share
                     </ContextMenuItem> */}
 
-                    <ContextMenuItem
-                      onClick={() => {
-                        if (item.type === "file") {
-                          setExshareDocId(item.id);
-                          setExshareOpen(true);
-                        } else {
-                          setFolderExshareTarget({ folderId: item.id, folderName: item.name });
-                          setFolderExshareOpen(true);
-                        }
-                      }}
-                    >
-                      <Share2 className="w-4 h-4 mr-2" /> Share via Email (Exshare)
-                    </ContextMenuItem>
+                    {canUseExshare && (
+                      <ContextMenuItem
+                        onClick={() => {
+                          if (item.type === "file") {
+                            setExshareDocId(item.id);
+                            setExshareOpen(true);
+                          } else {
+                            setFolderExshareTarget({ folderId: item.id, folderName: item.name });
+                            setFolderExshareOpen(true);
+                          }
+                        }}
+                      >
+                        <Share2 className="w-4 h-4 mr-2" /> Share via Email (Exshare)
+                      </ContextMenuItem>
+                    )}
 
                     <ContextMenuItem
                       onClick={() => {
@@ -490,25 +493,29 @@ export function DocumentsGrid({
       {/* Share Dialog */}
       <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} documentId={selectedDocument ?? ""} />
 
-      <ExshareDialog open={exshareOpen} onClose={() => setExshareOpen(false)} documentId={exshareDocId} />
+      {canUseExshare && (
+        <ExshareDialog open={exshareOpen} onClose={() => setExshareOpen(false)} documentId={exshareDocId} />
+      )}
 
-      <FolderExshareDialog
-        open={folderExshareOpen}
-        onClose={() => {
-          setFolderExshareOpen(false);
-          setFolderExshareTarget(null);
-        }}
-        organizationId={organizationId}
-        target={
-          folderExshareTarget
-            ? {
-                type: "folder",
-                folderId: folderExshareTarget.folderId,
-                folderName: folderExshareTarget.folderName,
-              }
-            : null
-        }
-      />
+      {canUseExshare && (
+        <FolderExshareDialog
+          open={folderExshareOpen}
+          onClose={() => {
+            setFolderExshareOpen(false);
+            setFolderExshareTarget(null);
+          }}
+          organizationId={organizationId}
+          target={
+            folderExshareTarget
+              ? {
+                  type: "folder",
+                  folderId: folderExshareTarget.folderId,
+                  folderName: folderExshareTarget.folderName,
+                }
+              : null
+          }
+        />
+      )}
 
       <DocumentDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} documentId={selectedDoc} />
 
