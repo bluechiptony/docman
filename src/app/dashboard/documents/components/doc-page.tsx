@@ -41,10 +41,17 @@ export default function DocumentsPage() {
   const searchParams = useSearchParams();
   const folderId = searchParams.get("folderId");
   const handledFolderIdRef = useRef<string | null>(null);
+  const handledPersonalFolderRef = useRef<string | null>(null);
 
   const role = user?.authentication?.role;
+  const isPersonalFolderUser = role === "USER" || role === "STAFF";
   const canManage = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER";
-  const canManageUploads = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER" || role === "USER";
+  const canManageUploads =
+    role === "SUPER_ADMIN" ||
+    role === "ADMINISTRATOR" ||
+    role === "MANAGER" ||
+    role === "USER" ||
+    role === "STAFF";
 
   const { path, visibleItems, createFolder, openFolder, navigateToFolder, goBackTo, moveItem, addDocument } =
     useDocuments();
@@ -95,6 +102,24 @@ export default function DocumentsPage() {
       handledFolderIdRef.current = folderId;
     }
   }, [folderId, navigateToFolder]);
+
+  useEffect(() => {
+    if (folderId || !isPersonalFolderUser || currentFolderId) return;
+
+    const staffFolders = visibleItems.filter(
+      (item) => item.type === "folder" && item.folderType === "STAFF",
+    );
+    const personalFolder =
+      staffFolders.find((item) => item.isOwnStaffFolder) ??
+      (staffFolders.length === 1 ? staffFolders[0] : undefined);
+
+    if (!personalFolder || handledPersonalFolderRef.current === personalFolder.id) return;
+
+    const didNavigate = navigateToFolder(personalFolder.id);
+    if (didNavigate) {
+      handledPersonalFolderRef.current = personalFolder.id;
+    }
+  }, [currentFolderId, folderId, isPersonalFolderUser, navigateToFolder, visibleItems]);
 
   useEffect(() => {
     if (!selectedOrgId || !canManage) {
@@ -273,7 +298,11 @@ export default function DocumentsPage() {
             </Button>
           )}
           {canManageUploads && (
-            <Button onClick={() => setIsUploadOpen(true)} size="sm">
+            <Button
+              onClick={() => setIsUploadOpen(true)}
+              size="sm"
+              disabled={isPersonalFolderUser && !currentFolderId}
+            >
               <Plus className="mr-2 h-4 w-4" /> Upload
             </Button>
           )}

@@ -16,6 +16,7 @@ export interface DocumentItem {
   // When item is a folder, this indicates DB-level folder type (e.g., STAFF)
   folderType?: string;
   folderRequiredDocumentsId?: string;
+  isOwnStaffFolder?: boolean;
   size?: number;
   mimeType?: string;
   createdAt?: string;
