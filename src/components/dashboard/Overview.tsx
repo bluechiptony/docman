@@ -54,7 +54,7 @@ export default function DashboardPage() {
     documents: 0,
     users: 0,
     folders: 0,
-    storageUsedGb: 0,
+    storageUsedBytes: 0,
     recentUploads: 0,
   });
   const [activityData, setActivityData] = useState<UploadPoint[]>([]);
@@ -84,7 +84,7 @@ export default function DashboardPage() {
           documents: overview.totals.documents,
           users: overview.totals.users,
           folders: overview.totals.folders,
-          storageUsedGb: overview.totals.storageUsedGb,
+          storageUsedBytes: overview.totals.storageUsedBytes,
           recentUploads: overview.recentUploads,
         });
 
@@ -182,7 +182,7 @@ export default function DashboardPage() {
         {isAdminOrSupport && (
           <StatCard
             title="Storage Used"
-            value={`${stats.storageUsedGb} GB`}
+            value={formatStorageSize(stats.storageUsedBytes)}
             icon={<HardDrive className="text-amber-500" />}
           />
         )}
@@ -235,6 +235,16 @@ function StatCard({ title, value, icon }: { title: string; value: string | numbe
       </CardContent>
     </Card>
   );
+}
+
+function formatStorageSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** unitIndex;
+
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 2)} ${units[unitIndex]}`;
 }
 
 function RecentActivity({

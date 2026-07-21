@@ -131,7 +131,7 @@ export default function StorageSettings() {
 
       <CardContent className="space-y-8">
         {/* Storage Usage */}
-        <section>
+        {/* <section>
           <h3 className="text-sm font-medium mb-4 text-gray-600">Storage Usage Overview</h3>
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="w-full md:w-1/2 h-48">
@@ -166,7 +166,7 @@ export default function StorageSettings() {
               </div>
             </div>
           </div>
-        </section>
+        </section> */}
 
         {isAdmin && (
           <section>
@@ -205,7 +205,7 @@ export default function StorageSettings() {
         )}
 
         {/* Connected Drives */}
-        <section>
+        {/* <section>
           <h3 className="text-sm font-medium mb-4 text-gray-600">Connected Drives</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -236,10 +236,10 @@ export default function StorageSettings() {
               <Switch id="dropbox" checked={connectedDrives.dropbox} onCheckedChange={() => toggleDrive("dropbox")} />
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* Cleanup Tools */}
-        <section>
+        {/* <section>
           <h3 className="text-sm font-medium mb-4 text-gray-600">Storage Maintenance</h3>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={() => handleCleanup("Cache")}>
@@ -252,15 +252,15 @@ export default function StorageSettings() {
               Empty Recycle Bin
             </Button>
           </div>
-        </section>
+        </section> */}
       </CardContent>
 
-      <CardFooter className="flex justify-end gap-3">
+      {/* <CardFooter className="flex justify-end gap-3">
         <Button variant="outline" onClick={() => toast.info("Changes discarded")}>
           Cancel
         </Button>
         <Button onClick={() => toast.success("Storage settings saved successfully!")}>Save Changes</Button>
-      </CardFooter>
+      </CardFooter> */}
     </Card>
   );
 }

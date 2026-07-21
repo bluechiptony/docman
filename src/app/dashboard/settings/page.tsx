@@ -53,7 +53,7 @@ export default function SettingsPage() {
               {/* <TabsTrigger value="users">User & Access</TabsTrigger> */}
 
               {/* <TabsTrigger value="appearance">Appearance</TabsTrigger> */}
-              <TabsTrigger value="folder">Folder</TabsTrigger>
+              {/* <TabsTrigger value="folder">Folder</TabsTrigger> */}
               <TabsTrigger value="document-categories">Categories</TabsTrigger>
               <TabsTrigger value="document-types">Document Types</TabsTrigger>
             </TabsList>
@@ -77,9 +77,9 @@ export default function SettingsPage() {
             <TabsContent value="appearance">
               <AppearanceSettings />
             </TabsContent>
-            <TabsContent value="folder">
+            {/* <TabsContent value="folder">
               <FolderSettingsPage />
-            </TabsContent>
+            </TabsContent> */}
             <TabsContent value="document-categories">
               <DocumentCategoriesSettings />
             </TabsContent>
