@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiClient } from "@/api/client";
@@ -72,8 +72,6 @@ export default function ModerationDashboard() {
   const [activeTab, setActiveTab] = useState("PENDING");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [managerFolderIds, setManagerFolderIds] = useState<Set<string>>(new Set());
-  const [managerFoldersLoaded, setManagerFoldersLoaded] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [total, setTotal] = useState(0);
@@ -81,26 +79,18 @@ export default function ModerationDashboard() {
   const totalPages = Math.max(1, Math.ceil(total / perPage));
 
   useEffect(() => {
-    if (user?.authentication?.role === "MANAGER") {
-      fetchManagerFolders();
-    } else {
-      setManagerFoldersLoaded(true);
+    if (user && (user.authentication.role === "SUPER_ADMIN" || user.selectedOrganization?.id)) {
       fetchStats();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.authentication?.role, user?.selectedOrganization?.id]);
 
   useEffect(() => {
-    if (user?.authentication?.role !== "MANAGER" || managerFoldersLoaded) {
-      fetchStats();
-    }
-  }, [managerFolderIds, managerFoldersLoaded, user]);
-
-  useEffect(() => {
-    if (user?.authentication?.role !== "MANAGER" || managerFoldersLoaded) {
+    if (user && (user.authentication.role === "SUPER_ADMIN" || user.selectedOrganization?.id)) {
       fetchReviews(activeTab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page, perPage, managerFolderIds, managerFoldersLoaded, user]);
+  }, [activeTab, page, perPage, user?.authentication?.role, user?.selectedOrganization?.id]);
 
   useEffect(() => {
     setPage(1);
@@ -125,68 +115,31 @@ export default function ModerationDashboard() {
     }
   }, [selectedReview]);
 
-  const fetchManagerFolders = async () => {
-    try {
-      // Fetch manager's assigned clients
-      const assignedResponse = await apiClient.get(`/user/${user.id}/clients`);
-      const assignedClients = assignedResponse.data || [];
-
-      // Collect all folder IDs from assigned clients
-      const folderIds = new Set<string>();
-      assignedClients.forEach((client: any) => {
-        if (client.folders) {
-          client.folders.forEach((folder: any) => {
-            folderIds.add(folder.id);
-          });
-        }
-      });
-
-      setManagerFolderIds(folderIds);
-    } catch (error) {
-    } finally {
-      setManagerFoldersLoaded(true);
-    }
-  };
-
   const fetchStats = async () => {
     try {
-      if (user?.authentication?.role === "MANAGER" && managerFoldersLoaded && managerFolderIds.size === 0) {
-        setStats({});
-        return;
-      }
-
-      const folderIds = user?.authentication?.role === "MANAGER" ? Array.from(managerFolderIds).join(",") : undefined;
-
       const response = await apiClient.get("/documents/review/statistics", {
-        params: folderIds ? { folderIds } : {},
+        params: user?.selectedOrganization?.id ? { organizationId: user.selectedOrganization.id } : {},
       });
 
       setStats(response.data);
-    } catch (error) {}
+    } catch {}
   };
 
   const fetchReviews = async (status: string = "PENDING") => {
     try {
-      if (user?.authentication?.role === "MANAGER" && managerFoldersLoaded && managerFolderIds.size === 0) {
-        setReviews([]);
-        setTotal(0);
-        return;
-      }
-
       setLoading(true);
       const endpoint = status === "PENDING" ? "/documents/review/pending" : `/documents/review/status/${status}`;
-      const folderIds = user?.authentication?.role === "MANAGER" ? Array.from(managerFolderIds).join(",") : undefined;
       const response = await apiClient.get(endpoint, {
         params: {
           page,
           size: perPage,
-          ...(folderIds ? { folderIds } : {}),
+          ...(user?.selectedOrganization?.id ? { organizationId: user.selectedOrganization.id } : {}),
         },
       });
 
       setReviews(response.data?.data || []);
       setTotal(response.data?.pagination?.total || 0);
-    } catch (error: unknown) {
+    } catch {
       toast.error("Failed to load reviews");
     } finally {
       setLoading(false);
@@ -198,10 +151,11 @@ export default function ModerationDashboard() {
 
     try {
       setLoading(true);
-      await apiClient.patch(`/documents/review/${selectedReview.id}/approve`, {
-        reviewedById: user.id, // Replace with actual user ID
-        notes: approvalNotes,
-      });
+      await apiClient.patch(
+        `/documents/review/${selectedReview.id}/approve`,
+        { notes: approvalNotes },
+        { params: user?.selectedOrganization?.id ? { organizationId: user.selectedOrganization.id } : {} },
+      );
       toast.success("Document approved");
       setSelectedReview(null);
       setApprovalNotes("");
@@ -223,11 +177,11 @@ export default function ModerationDashboard() {
 
     try {
       setLoading(true);
-      await apiClient.patch(`/documents/review/${selectedReview.id}/reject`, {
-        reviewedById: user.id, // Replace with actual user ID
-        reason: rejectionReason,
-        notes: rejectionNotes,
-      });
+      await apiClient.patch(
+        `/documents/review/${selectedReview.id}/reject`,
+        { reason: rejectionReason, notes: rejectionNotes },
+        { params: user?.selectedOrganization?.id ? { organizationId: user.selectedOrganization.id } : {} },
+      );
       toast.success("Document rejected");
       setSelectedReview(null);
       setRejectionReason("");
@@ -421,7 +375,11 @@ export default function ModerationDashboard() {
               {loading ? (
                 <div className="text-center py-8 text-gray-500">Loading reviews...</div>
               ) : reviews.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No reviews found</div>
+                <div className="text-center py-8 text-gray-500">
+                  {user?.authentication?.role === "MANAGER"
+                    ? "No reviews found for your assigned clients"
+                    : "No reviews found"}
+                </div>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
