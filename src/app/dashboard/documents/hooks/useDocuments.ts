@@ -83,6 +83,7 @@ export function useDocuments({ autoOpenSingleStaffFolder = false }: UseDocuments
       }
 
       setLoading(true);
+      let isOpeningStaffFolder = false;
       try {
         const isSuperAdmin = user?.authentication?.role === "SUPER_ADMIN";
         const selectedOrgId = user?.selectedOrganization?.id;
@@ -116,6 +117,7 @@ export function useDocuments({ autoOpenSingleStaffFolder = false }: UseDocuments
             (staffFolders.length === 1 ? staffFolders[0] : undefined);
 
           if (personalFolder) {
+            isOpeningStaffFolder = true;
             setPath([
               ROOT_PATH,
               {
@@ -131,7 +133,11 @@ export function useDocuments({ autoOpenSingleStaffFolder = false }: UseDocuments
       } catch (error: any) {
         toast.error(error.response?.data?.message || "Failed to load documents");
       } finally {
-        setLoading(false);
+        // Keep the loader visible while the path change starts the follow-up
+        // request for the personal folder's contents.
+        if (!isOpeningStaffFolder) {
+          setLoading(false);
+        }
       }
     },
     [authLoading, autoOpenSingleStaffFolder, user?.authentication?.role, user?.selectedOrganization?.id, user?.id],
@@ -508,6 +514,7 @@ export function useDocuments({ autoOpenSingleStaffFolder = false }: UseDocuments
 
   return {
     documents,
+    loading,
     visibleItems,
     path,
     currentFolderId,

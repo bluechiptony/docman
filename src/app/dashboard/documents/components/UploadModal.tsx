@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useDocuments } from "../hooks/useDocuments";
-import { X, UploadCloud } from "lucide-react";
+import { Loader2, X, UploadCloud } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth.provider";
@@ -70,6 +70,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
 
     let cancelled = false;
     const t = setTimeout(async () => {
+      setDocTypesLoading(true);
       try {
         const results = await searchDocumentTypes(organizationId, q);
         if (cancelled) return;
@@ -79,6 +80,10 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
         if (cancelled) return;
         setDocTypeResults([]);
         setDocTypeOpen(false);
+      } finally {
+        if (!cancelled) {
+          setDocTypesLoading(false);
+        }
       }
     }, 300);
 
@@ -291,7 +296,10 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
                   <Command>
                     <CommandList>
                       {docTypesLoading ? (
-                        <div className="p-3 text-sm text-muted-foreground">Loading...</div>
+                        <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground" role="status">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Loading document types...</span>
+                        </div>
                       ) : docTypeResults.length ? (
                         docTypeResults.map((dt) => (
                           <CommandItem
@@ -318,6 +326,12 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
                   </Command>
                 </PopoverContent>
               </Popover>
+              {docTypesLoading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Loading document types...</span>
+                </div>
+              )}
               {selectedDocTypeId ? (
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <span>Selected type: {docTypes.find((d) => d.id === selectedDocTypeId)?.name || "(unknown)"}</span>

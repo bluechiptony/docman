@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, FolderPlus, Search, HelpCircle } from "lucide-react";
+import { Plus, FolderPlus, FolderOpen, Loader2, Search, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -52,7 +52,7 @@ export default function DocumentsPage() {
     role === "USER" ||
     role === "STAFF";
 
-  const { path, visibleItems, createFolder, openFolder, navigateToFolder, goBackTo, moveItem, addDocument } =
+  const { path, loading, visibleItems, createFolder, openFolder, navigateToFolder, goBackTo, moveItem, addDocument } =
     useDocuments({ autoOpenSingleStaffFolder: isPersonalFolderUser && !folderId });
   const currentFolderId = path[path.length - 1]?.id ?? null;
   const currentPathEntry = path[path.length - 1] ?? null;
@@ -413,19 +413,36 @@ export default function DocumentsPage() {
       <div className="flex-1 overflow-hidden">
         <div className="flex h-full">
           <div className="flex-1 overflow-y-auto">
-            <DocumentsGrid
-              items={filteredItems}
-              organizationId={selectedOrgId ?? ""}
-              onFolderOpen={openFolder}
-              onMove={moveItem}
-              onDelete={handleDelete}
-              onRename={(id: string, newName: string) => {}}
-              onShare={(id: string) => {
-                return "";
-              }}
-              onOpenCreateFolder={() => setIsCreateFolderOpen(true)}
-              onOpenUpload={() => setIsUploadOpen(true)}
-            />
+            {isPersonalFolderUser && loading ? (
+              <div
+                className="flex min-h-[50vh] flex-col items-center justify-center rounded-xl border border-dashed border-blue-200 bg-blue-50/70 p-8 text-center"
+                role="status"
+                aria-live="polite"
+              >
+                <div className="relative mb-4">
+                  <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-blue-100">
+                    <FolderOpen className="h-10 w-10 text-blue-600" />
+                  </div>
+                  <Loader2 className="absolute -bottom-2 -right-2 h-6 w-6 animate-spin rounded-full bg-white p-1 text-blue-600 shadow-sm" />
+                </div>
+                <p className="font-medium text-gray-900">Loading your folder</p>
+                <p className="mt-1 text-sm text-muted-foreground">Preparing your documents...</p>
+              </div>
+            ) : (
+              <DocumentsGrid
+                items={filteredItems}
+                organizationId={selectedOrgId ?? ""}
+                onFolderOpen={openFolder}
+                onMove={moveItem}
+                onDelete={handleDelete}
+                onRename={(id: string, newName: string) => {}}
+                onShare={(id: string) => {
+                  return "";
+                }}
+                onOpenCreateFolder={() => setIsCreateFolderOpen(true)}
+                onOpenUpload={() => setIsUploadOpen(true)}
+              />
+            )}
           </div>
           {/* Side panel shows when inside a folder (not root) */}
           {currentFolderId &&
