@@ -23,6 +23,9 @@ import {
 } from "@/lib/documents.service";
 import { getDocumentActivityLogs, type ActivityLog } from "@/lib/activity-log.service";
 import { ActivityLogList } from "@/components/common/ActivityLogList";
+import { PdfCanvasViewer } from "@/components/documents/PdfCanvasViewer";
+import { useAuthUser } from "@/providers/auth.provider";
+import { X } from "lucide-react";
 
 interface DocumentDrawerProps {
   open: boolean;
@@ -31,6 +34,9 @@ interface DocumentDrawerProps {
 }
 
 export default function DocumentDrawer({ open, onClose, documentId }: DocumentDrawerProps) {
+  const { user } = useAuthUser();
+  const role = user?.authentication?.role;
+  const hasDetailsOnly = role === "USER" || role === "STAFF";
   const [doc, setDoc] = useState<Document | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
@@ -165,7 +171,7 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
 
     // PDF
     if (ext === "pdf") {
-      return <iframe src={src} className="w-full h-[60vh] border rounded" title={doc?.name} />;
+      return <PdfCanvasViewer url={src} title={doc?.name || "PDF preview"} className="h-full rounded border" />;
     }
 
     // Office files (docx, xlsx, pptx) - use Office Web Viewer if possible
@@ -194,44 +200,61 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
   return (
     <>
       <Drawer open={open} onClose={onClose}>
-        <DrawerContent className="p-4 w-full min-h-screen">
-          <DrawerHeader className="py-2">
-            <DrawerTitle className="text-lg font-semibold">{doc?.name || "Document"}</DrawerTitle>
-            <div className="flex flex-col">
+        <DrawerContent className="h-[100dvh] !max-h-[100dvh] w-full overflow-hidden p-0">
+          <DrawerHeader className="shrink-0 px-4 pb-2 pt-2 sm:flex-row sm:items-center sm:justify-between sm:text-left">
+            <div className="min-w-0">
+              <DrawerTitle className="truncate text-lg font-semibold">{doc?.name || "Document"}</DrawerTitle>
               <DrawerDescription>Document details and permissions</DrawerDescription>
               {previewExpiresAt ? (
-                <span className="text-xs text-muted-foreground">
+                <span className="block text-xs text-muted-foreground">
                   Preview expires: {new Date(previewExpiresAt).toLocaleString()}
                 </span>
               ) : null}
-              <div className="mt-2">
-                <Button size="sm" variant="default" onClick={() => setExshareOpen(true)} disabled={!doc?.id}>
-                  Share via Email (Exshare)
-                </Button>
-              </div>
+            </div>
+            <div className="mt-2 flex shrink-0 items-center justify-center gap-2 sm:mt-0">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => setExshareOpen(true)}
+                disabled={!doc?.id}
+              >
+                Share via Email (Exshare)
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={onClose}
+                aria-label="Close document viewer"
+                title="Close document viewer"
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </div>
           </DrawerHeader>
 
-          <Tabs defaultValue="details" className="mt-4">
-            <TabsList className="grid grid-cols-3">
+          <Tabs defaultValue="details" className="min-h-0 flex-1 gap-2 px-4 pb-4">
+            <TabsList className={`grid w-full shrink-0 ${hasDetailsOnly ? "grid-cols-1" : "grid-cols-3"}`}>
               <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="permissions">Permissions</TabsTrigger>
+              {!hasDetailsOnly && <TabsTrigger value="activity">Activity</TabsTrigger>}
+              {!hasDetailsOnly && <TabsTrigger value="permissions">Permissions</TabsTrigger>}
             </TabsList>
 
             {/* DETAILS TAB */}
-            <TabsContent value="details" className="mt-4 ">
+            <TabsContent value="details" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
               {/* Preview area - takes most of the space */}
-              <div className="mb-3 ">
+              <div className="min-h-0 flex-1 overflow-hidden">
                 {previewLoading ? (
-                  <div className="p-4 border rounded text-sm">Loading preview...</div>
+                  <div className="flex h-full items-center justify-center rounded border p-4 text-sm">
+                    Loading preview...
+                  </div>
                 ) : (
                   renderPreview()
                 )}
               </div>
 
               {/* Details section - minimal height */}
-              <ScrollArea className="h-10">
+              <ScrollArea className="mt-2 h-10 shrink-0">
                 <div className="space-y-2 text-xs">
                   <p>
                     <strong>File Name:</strong> {doc?.folder?.name} / {doc?.name}
@@ -251,78 +274,82 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
             </TabsContent>
 
             {/* ACTIVITY TAB */}
-            <TabsContent value="activity" className="mt-4">
-              <ScrollArea className="h-80">
-                <ActivityLogList
-                  logs={activities}
-                  loading={activitiesLoading}
-                  showDocument={false}
-                  showFolder={false}
-                  emptyMessage="No activity logs for this document"
-                />
-              </ScrollArea>
-            </TabsContent>
+            {!hasDetailsOnly && (
+              <TabsContent value="activity" className="mt-0 min-h-0 overflow-hidden">
+                <ScrollArea className="h-full">
+                  <ActivityLogList
+                    logs={activities}
+                    loading={activitiesLoading}
+                    showDocument={false}
+                    showFolder={false}
+                    emptyMessage="No activity logs for this document"
+                  />
+                </ScrollArea>
+              </TabsContent>
+            )}
 
             {/* PERMISSIONS */}
-            <TabsContent value="permissions" className="mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-medium text-muted-foreground">Shared with:</span>
-                  {permissions.slice(0, 3).map((p) => (
-                    <div key={p.id} className="flex items-center gap-1">
-                      <Avatar className="h-4 w-4">
-                        <AvatarFallback>{p.user.firstName.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs">
-                        {p.user.firstName} {p.user.lastName}
-                      </span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {p.role}
-                      </Badge>
-                    </div>
-                  ))}
-                  {permissions.length > 3 ? (
-                    <span className="text-xs text-muted-foreground">+{permissions.length - 3} more</span>
-                  ) : null}
-                </div>
-                <Button size="sm" variant="outline" onClick={() => setShowShareModal(true)}>
-                  + Add User
-                </Button>
-              </div>
-              <ScrollArea className="h-80">
-                {permissions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No permissions set</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {permissions.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between border-b pb-2">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback>{p.user.firstName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">{`${p.user.firstName} ${p.user.lastName}`}</span>
-                            <span className="text-xs text-muted-foreground">{p.user.email}</span>
-                          </div>
-                        </div>
-
-                        {/* Editable Role */}
-                        <Select value={p.role} onValueChange={(value) => handleRoleChange(p.user.id, value)}>
-                          <SelectTrigger className="w-[110px] text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Viewer">Viewer</SelectItem>
-                            <SelectItem value="Editor">Editor</SelectItem>
-                            <SelectItem value="Owner">Owner</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </li>
+            {!hasDetailsOnly && (
+              <TabsContent value="permissions" className="mt-0 min-h-0 overflow-hidden">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-muted-foreground">Shared with:</span>
+                    {permissions.slice(0, 3).map((p) => (
+                      <div key={p.id} className="flex items-center gap-1">
+                        <Avatar className="h-4 w-4">
+                          <AvatarFallback>{p.user.firstName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs">
+                          {p.user.firstName} {p.user.lastName}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {p.role}
+                        </Badge>
+                      </div>
                     ))}
-                  </ul>
-                )}
-              </ScrollArea>
-            </TabsContent>
+                    {permissions.length > 3 ? (
+                      <span className="text-xs text-muted-foreground">+{permissions.length - 3} more</span>
+                    ) : null}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setShowShareModal(true)}>
+                    + Add User
+                  </Button>
+                </div>
+                <ScrollArea className="h-[calc(100%-3rem)]">
+                  {permissions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No permissions set</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {permissions.map((p) => (
+                        <li key={p.id} className="flex items-center justify-between border-b pb-2">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback>{p.user.firstName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{`${p.user.firstName} ${p.user.lastName}`}</span>
+                              <span className="text-xs text-muted-foreground">{p.user.email}</span>
+                            </div>
+                          </div>
+
+                          {/* Editable Role */}
+                          <Select value={p.role} onValueChange={(value) => handleRoleChange(p.user.id, value)}>
+                            <SelectTrigger className="w-[110px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Viewer">Viewer</SelectItem>
+                              <SelectItem value="Editor">Editor</SelectItem>
+                              <SelectItem value="Owner">Owner</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+            )}
           </Tabs>
         </DrawerContent>
       </Drawer>

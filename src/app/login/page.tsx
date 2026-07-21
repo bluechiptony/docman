@@ -149,12 +149,12 @@ export default function LoginComponent() {
                 </Button>
 
                 {/* Sign Up Link */}
-                <p className="text-center text-sm text-gray-600 pt-4">
+                {/* <p className="text-center text-sm text-gray-600 pt-4">
                   Don't have any account?{" "}
                   <Link href="/register" className="text-blue-600 hover:text-blue-800 font-semibold">
                     Register
                   </Link>
-                </p>
+                </p> */}
               </form>
             )}
           </Formik>

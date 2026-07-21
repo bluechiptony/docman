@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getDocumentPreviewUrl } from "@/lib/documents.service";
+import { getFolderExshareDocumentPreviewUrl } from "@/lib/exshare.service";
+import { PdfCanvasViewer } from "@/components/documents/PdfCanvasViewer";
 
 interface ExternalDocumentViewerModalProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface ExternalDocumentViewerModalProps {
   documentName?: string;
   documentMimeType?: string;
   documentSize?: number;
+  shareToken: string;
 }
 
 export default function ExternalDocumentViewerModal({
@@ -23,6 +25,7 @@ export default function ExternalDocumentViewerModal({
   documentName,
   documentMimeType,
   documentSize,
+  shareToken,
 }: ExternalDocumentViewerModalProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -38,7 +41,7 @@ export default function ExternalDocumentViewerModal({
       setLoading(true);
       try {
         // Get preview URL with longer expiry for external shares
-        const preview = await getDocumentPreviewUrl(documentId, 600);
+        const preview = await getFolderExshareDocumentPreviewUrl(shareToken, documentId);
         setPreviewUrl(preview.url);
       } catch (error: any) {
         toast.error("Failed to load document preview");
@@ -48,7 +51,7 @@ export default function ExternalDocumentViewerModal({
     };
 
     fetchPreviewUrl();
-  }, [open, documentId]);
+  }, [open, documentId, shareToken]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -76,8 +79,7 @@ export default function ExternalDocumentViewerModal({
 
     // PDF files - Direct preview via Cloudinary URL; hide toolbar
     if (mimeType.includes("pdf")) {
-      const pdfUrl = `${fullUrl}#toolbar=0&navpanes=0&scrollbar=0`;
-      return <iframe src={pdfUrl} className="w-full h-full border-0" title={documentName || "Document preview"} />;
+      return <PdfCanvasViewer url={fullUrl} title={documentName || "Document preview"} />;
     }
 
     // Image files - Direct display

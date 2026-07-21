@@ -72,6 +72,10 @@ export async function getExshareAccess(token: string): Promise<ExshareAccess> {
   return apiRequest<ExshareAccess>(() => apiClient.get(`/documents/exshare/${token}/access`));
 }
 
+export async function getExsharePreviewUrl(token: string): Promise<{ url: string; expiresAt: string }> {
+  return apiRequest<{ url: string; expiresAt: string }>(() => apiClient.get(`/documents/exshare/${token}/url`));
+}
+
 export async function createExshareInvites(
   documentId: string,
   emails: string[],
@@ -132,4 +136,13 @@ export async function requestFolderExshareRefresh(
 
 export async function getFolderExshareFolderContents(token: string, folderId: string): Promise<FolderExshareItem[]> {
   return apiRequest<FolderExshareItem[]>(() => apiClient.get(`/folders/exshare/${token}/folders/${folderId}/contents`));
+}
+
+export async function getFolderExshareDocumentPreviewUrl(
+  token: string,
+  documentId: string,
+): Promise<{ url: string; expiresAt: string }> {
+  return apiRequest<{ url: string; expiresAt: string }>(() =>
+    apiClient.get(`/documents/folder-exshare/${token}/documents/${documentId}/url`),
+  );
 }
