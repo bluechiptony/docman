@@ -41,7 +41,6 @@ export default function DocumentsPage() {
   const searchParams = useSearchParams();
   const folderId = searchParams.get("folderId");
   const handledFolderIdRef = useRef<string | null>(null);
-  const handledPersonalFolderRef = useRef<string | null>(null);
 
   const role = user?.authentication?.role;
   const isPersonalFolderUser = role === "USER" || role === "STAFF";
@@ -54,7 +53,7 @@ export default function DocumentsPage() {
     role === "STAFF";
 
   const { path, visibleItems, createFolder, openFolder, navigateToFolder, goBackTo, moveItem, addDocument } =
-    useDocuments();
+    useDocuments({ autoOpenSingleStaffFolder: isPersonalFolderUser && !folderId });
   const currentFolderId = path[path.length - 1]?.id ?? null;
   const currentPathEntry = path[path.length - 1] ?? null;
   const parentFolderId = path[path.length - 1]?.id ?? undefined;
@@ -102,24 +101,6 @@ export default function DocumentsPage() {
       handledFolderIdRef.current = folderId;
     }
   }, [folderId, navigateToFolder]);
-
-  useEffect(() => {
-    if (folderId || !isPersonalFolderUser || currentFolderId) return;
-
-    const staffFolders = visibleItems.filter(
-      (item) => item.type === "folder" && item.folderType === "STAFF",
-    );
-    const personalFolder =
-      staffFolders.find((item) => item.isOwnStaffFolder) ??
-      (staffFolders.length === 1 ? staffFolders[0] : undefined);
-
-    if (!personalFolder || handledPersonalFolderRef.current === personalFolder.id) return;
-
-    const didNavigate = navigateToFolder(personalFolder.id);
-    if (didNavigate) {
-      handledPersonalFolderRef.current = personalFolder.id;
-    }
-  }, [currentFolderId, folderId, isPersonalFolderUser, navigateToFolder, visibleItems]);
 
   useEffect(() => {
     if (!selectedOrgId || !canManage) {

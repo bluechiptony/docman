@@ -55,7 +55,11 @@ interface FolderPath {
 
 const ROOT_PATH: FolderPath = { id: null, name: "Root", slug: null };
 
-export function useDocuments() {
+interface UseDocumentsOptions {
+  autoOpenSingleStaffFolder?: boolean;
+}
+
+export function useDocuments({ autoOpenSingleStaffFolder = false }: UseDocumentsOptions = {}) {
   const { user, isLoading: authLoading } = useAuthUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,13 +106,35 @@ export function useDocuments() {
           : items.filter((item: DocumentItem) => item.parentId === null);
 
         setDocuments(items); // Store all items for internal filtering
+
+        if (!parentId && autoOpenSingleStaffFolder) {
+          const staffFolders = items.filter(
+            (item: DocumentItem) => item.type === "folder" && item.folderType === "STAFF",
+          );
+          const personalFolder =
+            staffFolders.find((item: DocumentItem) => item.isOwnStaffFolder) ??
+            (staffFolders.length === 1 ? staffFolders[0] : undefined);
+
+          if (personalFolder) {
+            setPath([
+              ROOT_PATH,
+              {
+                id: personalFolder.id,
+                name: personalFolder.name,
+                slug: personalFolder.slug ?? null,
+                folderType: personalFolder.folderType,
+                staff: personalFolder.staff,
+              },
+            ]);
+          }
+        }
       } catch (error: any) {
         toast.error(error.response?.data?.message || "Failed to load documents");
       } finally {
         setLoading(false);
       }
     },
-    [authLoading, user?.authentication?.role, user?.selectedOrganization?.id, user?.id],
+    [authLoading, autoOpenSingleStaffFolder, user?.authentication?.role, user?.selectedOrganization?.id, user?.id],
   );
 
   // Fetch documents when path changes
