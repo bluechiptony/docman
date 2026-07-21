@@ -200,7 +200,7 @@ export function useDocuments() {
   const navigateToFolder = useCallback(
     (folderId: string) => {
       const target = documents.find((item) => item.id === folderId && item.type === "folder");
-      if (!target) return;
+      if (!target) return false;
 
       const pathById = new Map<string, FolderPath>();
       const itemById = new Map<string, DocumentItem>();
@@ -237,6 +237,8 @@ export function useDocuments() {
         const nextIds = nextPath.map((item) => item.id).join("|");
         return prevIds === nextIds ? prev : nextPath;
       });
+
+      return true;
     },
     [documents],
   );

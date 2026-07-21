@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Plus, FolderPlus, Search, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,6 @@ type DocumentCategoryGroup = {
 };
 
 export default function DocumentsPage() {
-  const router = useRouter();
   const { user } = useAuthUser();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -42,6 +40,7 @@ export default function DocumentsPage() {
   } | null>(null);
   const searchParams = useSearchParams();
   const folderId = searchParams.get("folderId");
+  const handledFolderIdRef = useRef<string | null>(null);
 
   const role = user?.authentication?.role;
   const canManage = role === "SUPER_ADMIN" || role === "ADMINISTRATOR" || role === "MANAGER";
@@ -90,10 +89,12 @@ export default function DocumentsPage() {
   }, [currentPathEntry]);
 
   useEffect(() => {
-    if (!folderId) return;
-    navigateToFolder(folderId);
-    router.replace("/dashboard/documents");
-  }, [folderId, navigateToFolder, router]);
+    if (!folderId || handledFolderIdRef.current === folderId) return;
+    const didNavigate = navigateToFolder(folderId);
+    if (didNavigate) {
+      handledFolderIdRef.current = folderId;
+    }
+  }, [folderId, navigateToFolder]);
 
   useEffect(() => {
     if (!selectedOrgId || !canManage) {
