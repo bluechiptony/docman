@@ -416,7 +416,7 @@ export function DocumentsGrid({
                       <Pencil className="w-4 h-4 mr-2" /> Rename
                     </ContextMenuItem>
 
-                    <ContextMenuItem
+                    {/* <ContextMenuItem
                       onClick={() => {
                         if (item.type === "file") {
                           setSelectedDocument(item.id);
@@ -429,7 +429,7 @@ export function DocumentsGrid({
                       }}
                     >
                       <Share2 className="w-4 h-4 mr-2" /> Share
-                    </ContextMenuItem>
+                    </ContextMenuItem> */}
 
                     <ContextMenuItem
                       onClick={() => {

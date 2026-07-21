@@ -67,7 +67,7 @@ export default function LoginComponent() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Docman! &nbsp;
-              <span className="text-xl italic font-light">For Viclawrence Associates</span>
+              <span className="text-xl italic font-light">For Vic Lawrence And Associates</span>
             </h1>
             <p className="text-gray-600">Sign in to your account</p>
           </div>
