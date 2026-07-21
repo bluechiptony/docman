@@ -30,7 +30,7 @@ import DocumentDrawer from "./DocumentDrawer";
 import DocumentViewerModal from "./DocumentViewerModal";
 // (merged into the import above)
 import { getFolderRequirementStatus, type FolderRequirementStatus } from "@/lib/folders.service";
-import { getDocumentPermissions, hasDocumentPermission } from "@/lib/documents.service";
+import { checkDocumentAccess } from "@/lib/documents.service";
 import { useAuth } from "@/providers/auth.provider";
 
 interface Props {
@@ -150,10 +150,10 @@ export function DocumentsGrid({
       return;
     }
 
-    // Fetch permissions if not cached
+    // Ask the API for effective access. This includes explicit permissions,
+    // ownership, administrators, and manager-to-client folder assignments.
     try {
-      const permissions = await getDocumentPermissions(docId);
-      const hasPermission = hasDocumentPermission(user?.id || "", user?.authentication?.role || "VIEWER", permissions);
+      const hasPermission = await checkDocumentAccess(docId);
 
       // Cache the permission result
       setDocPermissions((prev) => ({ ...prev, [docId]: hasPermission }));

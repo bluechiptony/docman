@@ -89,6 +89,15 @@ export async function getDocumentPreviewUrl(
 }
 
 /**
+ * Ask the API whether the authenticated user has effective access.
+ * This includes derived access such as manager-to-client folder assignments.
+ */
+export async function checkDocumentAccess(documentId: string): Promise<boolean> {
+  const result = await apiRequest<{ hasAccess: boolean }>(() => apiClient.get(`/documents/${documentId}/access`));
+  return result.hasAccess;
+}
+
+/**
  * Get document activities (view, download, share, etc.)
  */
 export async function getDocumentActivities(documentId: string): Promise<DocumentActivity[]> {
