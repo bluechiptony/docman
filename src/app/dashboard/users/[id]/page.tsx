@@ -1,26 +1,111 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { apiClient } from "@/api/client";
 import UserProfile from "@/components/users/UserProfile";
 import UserDocumentsList from "@/components/users/UserDocumentsList";
 import { ManagerClientsSection } from "@/components/users/ManagerClientsSection";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
+interface UserDetails {
+  id: string;
+  firstName: string;
+  lastName: string;
+  emailAddress: string;
+  authentication?: {
+    role: string;
+    active: boolean;
+  } | null;
+  organizations?: Array<{
+    id?: string;
+    organizationId?: string;
+    name?: string;
+  }>;
 }
 
-async function fetchJson(url: string) {
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  return res.json();
+interface UserDocument {
+  id: string;
+  name: string;
+  mimeType?: string;
+  createdAt?: string;
 }
 
-export default async function UserPage({ params }: PageProps) {
-  const { id } = await params;
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-  const user = await fetchJson(`${apiBase}/user/${id}`);
-  const documents = (await fetchJson(`${apiBase}/documents/user/${id}`)) || [];
+export default function UserPage() {
+  const params = useParams<{ id: string }>();
+  const userId = params.id;
+  const [user, setUser] = useState<UserDetails | null>(null);
+  const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Check if user is a MANAGER
-  const isManager = user?.authentication?.role === "MANAGER";
-  const userOrganization = user?.organizations?.[0];
+  useEffect(() => {
+    if (!userId) return;
+
+    let cancelled = false;
+
+    const loadUser = async () => {
+      setLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const [userResponse, documentsResponse] = await Promise.all([
+          apiClient.get<UserDetails>(`/user/${userId}`),
+          apiClient.get<UserDocument[]>(`/documents/user/${userId}`),
+        ]);
+
+        if (cancelled) return;
+
+        setUser(userResponse.data);
+        setDocuments(documentsResponse.data || []);
+      } catch (error) {
+        if (cancelled) return;
+
+        const responseMessage = (
+          error as {
+            response?: { data?: { message?: string } };
+          }
+        ).response?.data?.message;
+
+        setErrorMessage(responseMessage || "Unable to load this user. Please try again.");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3" role="status">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <p className="text-sm text-muted-foreground">Loading user profile...</p>
+      </div>
+    );
+  }
+
+  if (errorMessage || !user) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+        <AlertCircle className="h-9 w-9 text-red-500" />
+        <div>
+          <p className="font-medium text-gray-900">User profile unavailable</p>
+          <p className="mt-1 text-sm text-muted-foreground">{errorMessage || "User not found."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isManager = user.authentication?.role === "MANAGER";
+  const userOrganization = user.organizations?.[0];
+  const organizationId = userOrganization?.organizationId ?? userOrganization?.id;
 
   return (
     <div className="p-6 space-y-6">
@@ -32,13 +117,13 @@ export default async function UserPage({ params }: PageProps) {
       <div className="space-y-6">
         <UserProfile user={user} />
 
-        {isManager && userOrganization ? (
+        {isManager && organizationId ? (
           <ManagerClientsSection
             userId={user.id}
-            organizationId={userOrganization.id}
+            organizationId={organizationId}
             userName={`${user.firstName} ${user.lastName}`}
           />
-        ) : user?.authentication?.role ? (
+        ) : user.authentication?.role ? (
           <div className="p-4 border rounded-lg bg-muted/50 text-sm text-muted-foreground">
             Client assignment is only available for users with the MANAGER role. Current role:{" "}
             <strong>{user.authentication.role}</strong>
