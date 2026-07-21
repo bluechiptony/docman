@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getDocumentById, getDocumentPreviewUrl, type Document } from "@/lib/documents.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PdfCanvasViewer } from "@/components/documents/PdfCanvasViewer";
 
 interface DocumentViewerProps {
   documentId: string;
@@ -87,11 +88,7 @@ export function DocumentViewer({ documentId, expiresInSeconds = 300 }: DocumentV
 
       <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
         {kind === "pdf" && (
-          <iframe
-            src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-            className="w-full h-[80vh]"
-            title="PDF preview"
-          />
+          <PdfCanvasViewer url={previewUrl} title={doc.name} className="h-[80vh]" />
         )}
         {kind === "image" && (
           <div className="flex items-center justify-center bg-neutral-50">

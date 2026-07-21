@@ -173,6 +173,7 @@ export default function FolderExshareDocumentsPage() {
       <ExternalDocumentViewerModal
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}
+        shareToken={token}
         documentId={selectedDocId}
         documentName={selectedDocName}
         documentMimeType={selectedDocMimeType}

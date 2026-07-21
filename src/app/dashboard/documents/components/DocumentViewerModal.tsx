@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getDocumentById, getDocumentPreviewUrl, downloadDocument, type Document } from "@/lib/documents.service";
+import { PdfCanvasViewer } from "@/components/documents/PdfCanvasViewer";
 
 interface DocumentViewerModalProps {
   open: boolean;
@@ -97,8 +98,7 @@ export default function DocumentViewerModal({
 
     // PDF files - Direct preview via Cloudinary URL; hide toolbar to discourage download
     if (mimeType.includes("pdf")) {
-      const pdfUrl = `${fullUrl}#toolbar=0&navpanes=0&scrollbar=0`;
-      return <iframe src={pdfUrl} className="w-full h-full border-0" title={doc?.name || "Document preview"} />;
+      return <PdfCanvasViewer url={fullUrl} title={doc?.name || "Document preview"} />;
     }
 
     // Image files - Direct display
@@ -176,9 +176,11 @@ export default function DocumentViewerModal({
                 {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
 
-              <Button variant="ghost" size="icon" onClick={handleDownload} title="Download">
-                <Download className="h-4 w-4" />
-              </Button>
+              {!doc?.mimeType?.toLowerCase().includes("pdf") && (
+                <Button variant="ghost" size="icon" onClick={handleDownload} title="Download">
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
 
               {onShare && (
                 <Button variant="ghost" size="icon" onClick={onShare} title="Share">

@@ -12,9 +12,10 @@ import {
   sendExshareOtp,
   verifyExshareOtp,
   getExshareAccess,
+  getExsharePreviewUrl,
   requestExshareRefresh,
 } from "@/lib/exshare.service";
-import { getDocumentPreviewUrl } from "@/lib/documents.service";
+import { PdfCanvasViewer } from "@/components/documents/PdfCanvasViewer";
 
 export default function ExsharePage() {
   const params = useParams<{ token: string }>();
@@ -83,7 +84,7 @@ export default function ExsharePage() {
       const access = await getExshareAccess(token);
       setDocAccess(access);
       try {
-        const preview = await getDocumentPreviewUrl(access.id, 600);
+        const preview = await getExsharePreviewUrl(token);
         setPreviewUrl(preview.url);
       } catch (e) {
         setPreviewUrl(null);
@@ -264,11 +265,19 @@ export default function ExsharePage() {
                 <div className="mb-2">
                   <p className="text-sm text-muted-foreground">Preview</p>
                 </div>
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-[70vh] border rounded"
-                  title={docAccess?.name || "Document"}
-                />
+                {docAccess?.name.toLowerCase().endsWith(".pdf") ? (
+                  <PdfCanvasViewer
+                    url={previewUrl}
+                    title={docAccess.name}
+                    className="h-[70vh] rounded border"
+                  />
+                ) : (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-[70vh] border rounded"
+                    title={docAccess?.name || "Document"}
+                  />
+                )}
               </div>
             ) : (
               <div className="p-4 border rounded text-sm">
