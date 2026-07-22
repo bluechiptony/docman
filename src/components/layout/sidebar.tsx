@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   FileText,
@@ -13,6 +12,7 @@ import {
   Activity,
   Share,
   HelpCircle,
+  FileOutput,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,6 +24,7 @@ import { useAuth } from "@/providers/auth.provider";
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { name: "Documents", icon: FileText, href: "/dashboard/documents" },
+  { name: "Convert", icon: FileOutput, href: "/dashboard/convert", roles: ["ADMINISTRATOR", "SUPER_ADMIN", "MANAGER"] },
   { name: "Users", icon: Users, href: "/dashboard/users", roles: ["ADMINISTRATOR", "SUPER_ADMIN", "MANAGER"] },
   { name: "Clients", icon: Briefcase, href: "/dashboard/clients", roles: ["ADMINISTRATOR", "SUPER_ADMIN", "MANAGER"] },
   { name: "Activity", icon: Activity, href: "/dashboard/activity", roles: ["ADMINISTRATOR", "SUPER_ADMIN"] },

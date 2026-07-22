@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { Menu, LogOut, KeyRound, Building2, HelpCircle } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Menu, LogOut, KeyRound, Building2, HelpCircle, Bell, Clock3, CheckCircle2, XCircle } from "lucide-react";
 import { useAuthUser } from "@/providers/auth.provider";
 import Link from "next/link";
 import {
@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { apiClient } from "@/api/client";
 import type { OrganizationOption } from "@/api/organizations";
 import { toast } from "sonner";
+import { conversionsApi, ConversionBatch } from "@/api/conversions";
 
 interface TopBarProps {
   toggleMobileSidebar: () => void;
@@ -33,11 +34,48 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [conversionSummary, setConversionSummary] = useState<{
+    unreadCount: number;
+    activeCount: number;
+    recent: ConversionBatch[];
+  }>({ unreadCount: 0, activeCount: 0, recent: [] });
   const canSelectOrganization = user?.authentication?.role === "SUPER_ADMIN";
+  const canConvert = ["MANAGER", "ADMINISTRATOR", "SUPER_ADMIN"].includes(user?.authentication?.role || "");
+  const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id;
   const initials = `${user?.firstName?.trim().charAt(0) || ""}${user?.lastName?.trim().charAt(0) || ""}`.toUpperCase() || "?";
 
   const handleOrgChange = (orgId: string) => {
     selectOrganization(orgId);
+  };
+
+  const loadConversionSummary = useCallback(async () => {
+    if (!canConvert || !organizationId || document.hidden) return;
+    try {
+      setConversionSummary(await conversionsApi.summary(organizationId));
+    } catch {
+      // Notifications are non-blocking; the conversion page surfaces request errors.
+    }
+  }, [canConvert, organizationId]);
+
+  useEffect(() => {
+    loadConversionSummary();
+    const interval = window.setInterval(loadConversionSummary, 30000);
+    document.addEventListener("visibilitychange", loadConversionSummary);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", loadConversionSummary);
+    };
+  }, [loadConversionSummary]);
+
+  const markConversionRead = async (batch: ConversionBatch) => {
+    if (!batch.notificationReadAt) {
+      await conversionsApi.markRead(batch.id).catch(() => undefined);
+      setConversionSummary((current) => ({
+        ...current,
+        unreadCount: Math.max(0, current.unreadCount - 1),
+        recent: current.recent.map((item) => item.id === batch.id ? { ...item, notificationReadAt: new Date().toISOString() } : item),
+      }));
+    }
   };
 
   const resetPasswordForm = () => {
@@ -117,6 +155,43 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
               </SelectContent>
             </Select>
           </div>
+        )}
+        {canConvert && organizationId && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative rounded-full" aria-label="Conversion notifications">
+                <Bell className="h-5 w-5" />
+                {conversionSummary.unreadCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                    {Math.min(99, conversionSummary.unreadCount)}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>Document conversions</span>
+                {conversionSummary.activeCount > 0 && <span className="text-xs font-normal text-amber-600">{conversionSummary.activeCount} active</span>}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {!conversionSummary.recent.length && <div className="px-3 py-6 text-center text-sm text-muted-foreground">No completed conversions</div>}
+              {conversionSummary.recent.map((batch) => {
+                const success = batch.jobs.filter((job) => job.status === "COMPLETED").length;
+                const failed = batch.jobs.filter((job) => job.status === "FAILED" || job.status === "EXPIRED").length;
+                return (
+                  <DropdownMenuItem key={batch.id} asChild onSelect={() => markConversionRead(batch)}>
+                    <Link href="/dashboard/convert" className="flex cursor-pointer items-start gap-3 py-3">
+                      {failed ? <XCircle className="mt-0.5 h-4 w-4 text-red-500" /> : success ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-green-600" /> : <Clock3 className="mt-0.5 h-4 w-4 text-amber-500" />}
+                      <span className="flex-1"><span className="block text-sm font-medium">Conversion batch complete</span><span className="block text-xs text-muted-foreground">{success} ready · {failed} failed</span></span>
+                      {!batch.notificationReadAt && <span className="mt-1 h-2 w-2 rounded-full bg-blue-600" />}
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild><Link href="/dashboard/convert" className="cursor-pointer justify-center font-medium">View all conversions</Link></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
