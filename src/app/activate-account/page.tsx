@@ -11,9 +11,13 @@ import { toast } from "sonner";
 import { apiClient } from "@/api/client";
 import Link from "next/link";
 import { ArrowLeft, Mail } from "lucide-react";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { PASSWORD_POLICY_MESSAGE, PASSWORD_POLICY_PATTERN } from "@/lib/password-policy";
 
 const ActivateAccountSchema = Yup.object().shape({
-  password: Yup.string().min(8, "Password must be at least 8 characters").required("Password is required"),
+  password: Yup.string()
+    .required("Password is required")
+    .matches(PASSWORD_POLICY_PATTERN, PASSWORD_POLICY_MESSAGE),
   confirmPassword: Yup.string()
     .required("Confirm password is required")
     .test("passwords-match", "Passwords must match", function (value) {
@@ -48,7 +52,7 @@ function ActivateAccountContent() {
         setLastName(response.data.lastName);
         setTokenValid(true);
       } catch (error: unknown) {
-        const err = error as any;
+        const err = error as { response?: { data?: { message?: string } } };
         const message = err.response?.data?.message || "Invalid or expired activation link";
         toast.error(message);
         setTokenValid(false);
@@ -73,7 +77,7 @@ function ActivateAccountContent() {
         router.push("/login");
       }, 1500);
     } catch (error: unknown) {
-      const err = error as any;
+      const err = error as { response?: { data?: { message?: string } } };
       const message = err.response?.data?.message || "Failed to activate account. Please try again.";
       toast.error(message);
     }
@@ -172,7 +176,7 @@ function ActivateAccountContent() {
                   {errors.password && touched.password && (
                     <span className="text-sm text-red-500">{errors.password}</span>
                   )}
-                  <p className="text-xs text-muted-foreground">At least 8 characters recommended</p>
+                  <PasswordStrength password={values.password} />
                 </div>
 
                 {/* Confirm Password */}

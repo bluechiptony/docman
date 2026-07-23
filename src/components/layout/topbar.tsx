@@ -22,6 +22,8 @@ import { apiClient } from "@/api/client";
 import type { OrganizationOption } from "@/api/organizations";
 import { toast } from "sonner";
 import { conversionsApi, ConversionBatch } from "@/api/conversions";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
 
 interface TopBarProps {
   toggleMobileSidebar: () => void;
@@ -97,8 +99,8 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
       toast.error("Complete all password fields");
       return;
     }
-    if (newPassword.length < 8) {
-      toast.error("New password must be at least 8 characters");
+    if (!isStrongPassword(newPassword)) {
+      toast.error(PASSWORD_POLICY_MESSAGE);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -267,7 +269,7 @@ export default function TopBar({ toggleMobileSidebar }: TopBarProps) {
                   minLength={8}
                   required
                 />
-                <p className="text-xs text-muted-foreground">Use at least 8 characters.</p>
+                <PasswordStrength password={newPassword} />
               </div>
 
               <div className="space-y-2">

@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { apiClient } from "@/api/client";
 import Link from "next/link";
 import { ArrowLeft, Mail } from "lucide-react";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
 
 function AcceptInviteContent() {
   const router = useRouter();
@@ -42,7 +44,7 @@ function AcceptInviteContent() {
         setEmail(response.data.email);
         setTokenValid(true);
       } catch (error: unknown) {
-        const err = error as any;
+        const err = error as { response?: { data?: { message?: string } } };
         const message = err.response?.data?.message || "Invalid or expired invite link";
         toast.error(message);
         setTokenValid(false);
@@ -67,8 +69,8 @@ function AcceptInviteContent() {
       toast.error("Please enter a password");
       return false;
     }
-    if (formData.password.length < 8) {
-      toast.error("Password must be at least 8 characters long");
+    if (!isStrongPassword(formData.password)) {
+      toast.error(PASSWORD_POLICY_MESSAGE);
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -103,7 +105,7 @@ function AcceptInviteContent() {
         router.push("/login");
       }, 1500);
     } catch (error: unknown) {
-      const err = error as any;
+      const err = error as { response?: { data?: { message?: string } } };
       const message = err.response?.data?.message || "Failed to create account. Please try again.";
       toast.error(message);
     } finally {
@@ -245,7 +247,7 @@ function AcceptInviteContent() {
                 disabled={submitting}
                 required
               />
-              <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
+              <PasswordStrength password={formData.password} />
             </div>
 
             {/* Confirm Password */}

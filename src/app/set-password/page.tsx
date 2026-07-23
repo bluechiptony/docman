@@ -10,9 +10,13 @@ import { Eye, EyeOff } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { PASSWORD_POLICY_MESSAGE, PASSWORD_POLICY_PATTERN } from "@/lib/password-policy";
 
 const SetPasswordSchema = Yup.object().shape({
-  password: Yup.string().min(8, "Password must be at least 8 characters").required("Password is required"),
+  password: Yup.string()
+    .required("Password is required")
+    .matches(PASSWORD_POLICY_PATTERN, PASSWORD_POLICY_MESSAGE),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref("password")], "Passwords must match")
     .required("Confirm password is required"),
@@ -60,8 +64,9 @@ export default function SetPasswordComponent() {
       setTimeout(() => {
         router.push("/login");
       }, 1500);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to reset password. Please try again.");
+    } catch (error: unknown) {
+      const apiError = error as { response?: { data?: { message?: string } } };
+      toast.error(apiError.response?.data?.message || "Failed to reset password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -139,6 +144,7 @@ export default function SetPasswordComponent() {
                   {errors.password && touched.password && (
                     <span className="text-sm text-red-500">{errors.password}</span>
                   )}
+                  <PasswordStrength password={values.password} />
                 </div>
 
                 {/* Confirm Password Field */}
