@@ -1,4 +1,5 @@
 import { apiClient, apiRequest } from "./client";
+import { invalidateDocumentTypesCache } from "@/lib/document-types.service";
 
 export interface DocumentType {
   id: string;
@@ -45,17 +46,28 @@ export const documentTypesApi = {
   /**
    * Create a new document type
    */
-  create: (payload: CreateDocumentTypePayload) =>
-    apiRequest<DocumentType>(() => apiClient.post(`/document-types`, payload)),
+  create: async (payload: CreateDocumentTypePayload) => {
+    const created = await apiRequest<DocumentType>(() => apiClient.post(`/document-types`, payload));
+    invalidateDocumentTypesCache(payload.organizationId);
+    return created;
+  },
 
   /**
    * Update a document type
    */
-  update: (id: string, organizationId: string, payload: UpdateDocumentTypePayload) =>
-    apiRequest<DocumentType>(() => apiClient.put(`/document-types/${id}`, payload, { params: { organizationId } })),
+  update: async (id: string, organizationId: string, payload: UpdateDocumentTypePayload) => {
+    const updated = await apiRequest<DocumentType>(() =>
+      apiClient.put(`/document-types/${id}`, payload, { params: { organizationId } }),
+    );
+    invalidateDocumentTypesCache(organizationId);
+    return updated;
+  },
 
   /**
    * Delete a document type
    */
-  delete: (id: string) => apiRequest<void>(() => apiClient.delete(`/document-types/${id}`)),
+  delete: async (id: string) => {
+    await apiRequest<void>(() => apiClient.delete(`/document-types/${id}`));
+    invalidateDocumentTypesCache();
+  },
 };

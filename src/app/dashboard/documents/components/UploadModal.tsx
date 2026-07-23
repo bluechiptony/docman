@@ -10,7 +10,7 @@ import clsx from "clsx";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth.provider";
 import { getDocumentTypes, searchDocumentTypes, type DocumentType } from "@/lib/document-types.service";
-import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
+import { Command, CommandList, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { organizationsApi } from "@/api/organizations";
@@ -27,6 +27,8 @@ interface UploadModalProps {
   onUploadComplete?: (fileName: string, fileUrl: string) => void; // ✅
   currentFolderId?: string | null;
 }
+
+const MAX_DOCUMENT_TYPE_SUGGESTIONS = 8;
 
 export default function UploadModal({ isOpen, onClose, onUploadComplete, currentFolderId }: UploadModalProps) {
   const { handleUpload, cancelUpload } = useDocuments();
@@ -52,19 +54,37 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
     if (isOpen && mode === "typed" && organizationId) {
       setDocTypesLoading(true);
       getDocumentTypes(organizationId)
-        .then((types) => setDocTypes(types))
+        .then((types) => {
+          setDocTypes(types);
+          setDocTypeResults(types.slice(0, MAX_DOCUMENT_TYPE_SUGGESTIONS));
+        })
         .catch(() => toast.error("Failed to load document types"))
         .finally(() => setDocTypesLoading(false));
     }
   }, [isOpen, mode, organizationId]);
 
-  // Debounced remote search and open dropdown based on results
+  // Show cached suggestions immediately, then use the existing debounced
+  // server search once the user enters at least two characters.
   useEffect(() => {
     if (!isOpen || mode !== "typed" || !organizationId) return;
     const q = docTypeQuery.trim();
+    const selectedType = docTypes.find((type) => type.id === selectedDocTypeId);
+
+    if (selectedType && q === selectedType.name) {
+      setDocTypeResults([selectedType]);
+      return;
+    }
+
     if (q.length < 2) {
-      setDocTypeResults([]);
-      setDocTypeOpen(false);
+      const normalizedQuery = q.toLowerCase();
+      const suggestions = normalizedQuery
+        ? docTypes.filter(
+            (type) =>
+              type.name.toLowerCase().includes(normalizedQuery) ||
+              type.description?.toLowerCase().includes(normalizedQuery),
+          )
+        : docTypes;
+      setDocTypeResults(suggestions.slice(0, MAX_DOCUMENT_TYPE_SUGGESTIONS));
       return;
     }
 
@@ -75,11 +95,9 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
         const results = await searchDocumentTypes(organizationId, q);
         if (cancelled) return;
         setDocTypeResults(results);
-        setDocTypeOpen(results.length > 0);
-      } catch (e) {
+      } catch {
         if (cancelled) return;
         setDocTypeResults([]);
-        setDocTypeOpen(false);
       } finally {
         if (!cancelled) {
           setDocTypesLoading(false);
@@ -91,7 +109,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
       cancelled = true;
       clearTimeout(t);
     };
-  }, [docTypeQuery, isOpen, mode, organizationId]);
+  }, [docTypeQuery, docTypes, isOpen, mode, organizationId, selectedDocTypeId]);
 
   useEffect(() => {
     if (!isOpen || !organizationId) {
@@ -123,13 +141,6 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
       cancelled = true;
     };
   }, [isOpen, organizationId]);
-
-  const filteredDocTypes = docTypeQuery
-    ? docTypes.filter((dt) => {
-        const q = docTypeQuery.toLowerCase().trim();
-        return dt.name.toLowerCase().includes(q) || (dt.description ? dt.description.toLowerCase().includes(q) : false);
-      })
-    : docTypes;
 
   // ✅ Combine newly added files with existing ones (avoid duplicates)
   const addFiles = useCallback(
@@ -233,7 +244,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
           const uploadedUrl = `https://example-bucket.com/${file.name}`; // or real response
           toast.success(`${file.name} uploaded successfully!`, { id: toastId });
           onUploadComplete?.(file.name, uploadedUrl);
-        } catch (err) {
+        } catch {
           toast.error(`Failed to upload ${file.name}`, { id: toastId });
         }
       }),
@@ -287,8 +298,18 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
                     <Input
                       placeholder="Search document types..."
                       value={docTypeQuery}
-                      onChange={(e) => setDocTypeQuery(e.target.value)}
-                      onFocus={() => setDocTypeOpen(docTypeResults.length > 0)}
+                      onChange={(e) => {
+                        const nextQuery = e.target.value;
+                        setDocTypeQuery(nextQuery);
+                        setDocTypeOpen(true);
+                        if (
+                          selectedDocTypeId &&
+                          docTypes.find((type) => type.id === selectedDocTypeId)?.name !== nextQuery
+                        ) {
+                          setSelectedDocTypeId(null);
+                        }
+                      }}
+                      onFocus={() => setDocTypeOpen(true)}
                     />
                   </div>
                 </PopoverTrigger>
@@ -320,7 +341,11 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
                           </CommandItem>
                         ))
                       ) : (
-                        <div className="p-3 text-sm text-muted-foreground">No document types found</div>
+                        <div className="p-3 text-sm text-muted-foreground">
+                          {docTypeQuery.trim()
+                            ? "No document types found"
+                            : "No document types have been configured"}
+                        </div>
                       )}
                     </CommandList>
                   </Command>
