@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth.provider";
 import { getDocumentTypes, searchDocumentTypes, type DocumentType } from "@/lib/document-types.service";
 import { Command, CommandList, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { organizationsApi } from "@/api/organizations";
 import {
@@ -47,6 +47,7 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
   const [docTypeQuery, setDocTypeQuery] = useState("");
   const [docTypeOpen, setDocTypeOpen] = useState(false);
   const [docTypeResults, setDocTypeResults] = useState<DocumentType[]>([]);
+  const docTypeInputRef = useRef<HTMLInputElement>(null);
   const [uploadPolicy, setUploadPolicy] = useState<UploadPolicy>(getEffectiveUploadPolicy());
   const organizationId = user?.selectedOrganization?.id ?? user?.organizations?.[0]?.id ?? null;
 
@@ -293,9 +294,10 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Select a document type</p>
               <Popover open={docTypeOpen} onOpenChange={setDocTypeOpen}>
-                <PopoverTrigger asChild>
+                <PopoverAnchor asChild>
                   <div>
                     <Input
+                      ref={docTypeInputRef}
                       placeholder="Search document types..."
                       value={docTypeQuery}
                       onChange={(e) => {
@@ -310,10 +312,20 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete, current
                         }
                       }}
                       onFocus={() => setDocTypeOpen(true)}
+                      onPointerDown={() => setDocTypeOpen(true)}
                     />
                   </div>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="p-0 w-[var(--radix-popover-trigger-width)]">
+                </PopoverAnchor>
+                <PopoverContent
+                  align="start"
+                  className="p-0 w-[var(--radix-popover-trigger-width)]"
+                  onOpenAutoFocus={(event) => event.preventDefault()}
+                  onInteractOutside={(event) => {
+                    if (event.target === docTypeInputRef.current) {
+                      event.preventDefault();
+                    }
+                  }}
+                >
                   <Command>
                     <CommandList>
                       {docTypesLoading ? (
