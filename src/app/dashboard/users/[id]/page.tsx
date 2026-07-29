@@ -7,6 +7,23 @@ import { apiClient } from "@/api/client";
 import UserProfile from "@/components/users/UserProfile";
 import UserDocumentsList from "@/components/users/UserDocumentsList";
 import { ManagerClientsSection } from "@/components/users/ManagerClientsSection";
+import {
+  UserRoleSection,
+} from "@/components/users/UserRoleSection";
+import type { AssignableUserRole } from "@/components/users/UserRoleSection";
+import { useAuthUser } from "@/providers/auth.provider";
+
+type UserRole =
+  | AssignableUserRole
+  | "SUPER_ADMIN"
+  | "STAFF"
+  | "SUPPORT"
+  | "CUSTOMER"
+  | "GUEST";
+
+function isAssignableUserRole(role?: UserRole): role is AssignableUserRole {
+  return role === "USER" || role === "MANAGER" || role === "ADMINISTRATOR";
+}
 
 interface UserDetails {
   id: string;
@@ -14,7 +31,7 @@ interface UserDetails {
   lastName: string;
   emailAddress: string;
   authentication?: {
-    role: string;
+    role: UserRole;
     active: boolean;
   } | null;
   organizations?: Array<{
@@ -33,6 +50,7 @@ interface UserDocument {
 
 export default function UserPage() {
   const params = useParams<{ id: string }>();
+  const { user: authenticatedUser } = useAuthUser();
   const userId = params.id;
   const [user, setUser] = useState<UserDetails | null>(null);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
@@ -104,6 +122,11 @@ export default function UserPage() {
   }
 
   const isManager = user.authentication?.role === "MANAGER";
+  const canManageUsers =
+    authenticatedUser?.authentication?.role === "ADMINISTRATOR" ||
+    authenticatedUser?.authentication?.role === "SUPER_ADMIN";
+  const selectedUserRole = user.authentication?.role;
+  const hasAssignableRole = isAssignableUserRole(selectedUserRole);
   const userOrganization = user.organizations?.[0];
   const organizationId = userOrganization?.organizationId ?? userOrganization?.id;
 
@@ -117,17 +140,36 @@ export default function UserPage() {
       <div className="space-y-6">
         <UserProfile user={user} />
 
-        {isManager && organizationId ? (
+        {hasAssignableRole ? (
+          <UserRoleSection
+            userId={user.id}
+            currentRole={selectedUserRole}
+            canManage={canManageUsers}
+            onRoleUpdated={(role) =>
+              setUser((currentUser) =>
+                currentUser
+                  ? {
+                      ...currentUser,
+                      authentication: currentUser.authentication
+                        ? { ...currentUser.authentication, role }
+                        : { role, active: true },
+                    }
+                  : currentUser,
+              )
+            }
+          />
+        ) : user.authentication?.role ? (
+          <div className="rounded-lg border bg-muted/50 p-4 text-sm text-muted-foreground">
+            The <strong>{user.authentication.role}</strong> role cannot be changed from this page.
+          </div>
+        ) : null}
+
+        {isManager && organizationId && canManageUsers ? (
           <ManagerClientsSection
             userId={user.id}
             organizationId={organizationId}
             userName={`${user.firstName} ${user.lastName}`}
           />
-        ) : user.authentication?.role ? (
-          <div className="p-4 border rounded-lg bg-muted/50 text-sm text-muted-foreground">
-            Client assignment is only available for users with the MANAGER role. Current role:{" "}
-            <strong>{user.authentication.role}</strong>
-          </div>
         ) : null}
 
         <div>

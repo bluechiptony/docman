@@ -88,7 +88,7 @@ export default function UserTable({
             <th className="text-left px-4 py-2 font-medium text-gray-600">Email</th>
             <th className="text-left px-4 py-2 font-medium text-gray-600">Role</th>
             <th className="text-left px-4 py-2 font-medium text-gray-600">Status</th>
-            <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>
+            {/* <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th> */}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -115,7 +115,7 @@ export default function UserTable({
                 </Badge>
               </td>
               <td className="px-4 py-3">{getStatusBadge(user.authentication.active)}</td>
-              <td className="px-4 py-3 text-right">
+              {/* <td className="px-4 py-3 text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -158,7 +158,7 @@ export default function UserTable({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </td>
+              </td> */}
             </tr>
           ))}
         </tbody>

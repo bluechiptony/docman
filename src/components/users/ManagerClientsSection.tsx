@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,10 @@ interface ManagerClientsSectionProps {
   userName: string;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? fallback;
+}
+
 export function ManagerClientsSection({ userId, organizationId, userName }: ManagerClientsSectionProps) {
   const [assignedClients, setAssignedClients] = useState<Client[]>([]);
   const [availableClients, setAvailableClients] = useState<Client[]>([]);
@@ -27,11 +31,7 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
   const [assigning, setAssigning] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
 
-  useEffect(() => {
-    fetchClientsData();
-  }, [userId, organizationId]);
-
-  const fetchClientsData = async () => {
+  const fetchClientsData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch manager's assigned clients
@@ -47,12 +47,16 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
       const unassigned = allClients.filter((c: Client) => !assignedIds.has(c.id));
       setAvailableClients(unassigned);
       setSelectedClientId("");
-    } catch (error: any) {
-      toast.error("Failed to load clients");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to load clients"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId, userId]);
+
+  useEffect(() => {
+    void fetchClientsData();
+  }, [fetchClientsData]);
 
   const handleAssignClient = async () => {
     if (!selectedClientId) {
@@ -65,9 +69,8 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
       await apiClient.post(`/user/${userId}/clients/${selectedClientId}`);
       toast.success("Client assigned successfully");
       await fetchClientsData();
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to assign client";
-      toast.error(message);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to assign client"));
     } finally {
       setAssigning(false);
     }
@@ -80,9 +83,8 @@ export function ManagerClientsSection({ userId, organizationId, userName }: Mana
       await apiClient.delete(`/user/${userId}/clients/${clientId}`);
       toast.success("Client removed successfully");
       await fetchClientsData();
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to remove client";
-      toast.error(message);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to remove client"));
     }
   };
 
