@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
 import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader, Plus, X, Users as UsersIcon, Building2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader, Plus, X, Users as UsersIcon, Building2 } from "lucide-react";
 import { useAuth } from "@/providers/auth.provider";
+import { cn } from "@/lib/utils";
 
 interface Manager {
   id: string;
@@ -33,6 +35,82 @@ interface ManagerWithClients {
   clients: Client[];
 }
 
+interface SearchableOption {
+  value: string;
+  label: string;
+  searchValue: string;
+}
+
+interface SearchableDropdownProps {
+  value: string;
+  options: SearchableOption[];
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyMessage: string;
+  disabled?: boolean;
+  onValueChange: (value: string) => void;
+}
+
+function SearchableDropdown({
+  value,
+  options,
+  placeholder,
+  searchPlaceholder,
+  emptyMessage,
+  disabled,
+  onValueChange,
+}: SearchableDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((option) => option.value === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className="w-full justify-between font-normal"
+        >
+          <span className={cn("truncate", !selectedOption && "text-muted-foreground")}>
+            {selectedOption?.label ?? placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.searchValue}
+                  onSelect={() => {
+                    onValueChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
+                  <span className="truncate">{option.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? fallback;
+}
+
 export function ClientListTab() {
   const pageSize = 10;
   const { user } = useAuth();
@@ -44,17 +122,19 @@ export function ClientListTab() {
   const [assigning, setAssigning] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const organizationId = user?.selectedOrganization?.id;
 
-  useEffect(() => {
-    fetchData();
-  }, [user]);
-
-  const fetchData = async () => {
-    if (!user?.selectedOrganization) return;
+  const fetchData = useCallback(async () => {
+    if (!organizationId) {
+      setManagers([]);
+      setAvailableClients([]);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
-      const usersResponse = await apiClient.get(`/user/get/organization/${user.selectedOrganization.id}`);
+      const usersResponse = await apiClient.get(`/user/get/organization/${organizationId}`);
       const allUsers = usersResponse.data || [];
 
       const managerUsers = allUsers.filter((u: Manager) => u.authentication?.role === "MANAGER");
@@ -67,7 +147,7 @@ export function ClientListTab() {
               manager,
               clients: clientsResponse.data || [],
             };
-          } catch (error) {
+          } catch {
             return {
               manager,
               clients: [],
@@ -78,14 +158,18 @@ export function ClientListTab() {
 
       setManagers(managersWithClients);
 
-      const clientsResponse = await apiClient.get(`/clients?organizationId=${user.selectedOrganization.id}`);
+      const clientsResponse = await apiClient.get(`/clients?organizationId=${organizationId}`);
       setAvailableClients(clientsResponse.data?.data || []);
-    } catch (error: any) {
-      toast.error("Failed to load data");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to load data"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const handleAssignClient = async () => {
     if (!selectedManagerId || !selectedClientId) {
@@ -100,9 +184,8 @@ export function ClientListTab() {
       setSelectedManagerId("");
       setSelectedClientId("");
       await fetchData();
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to assign client";
-      toast.error(message);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to assign client"));
     } finally {
       setAssigning(false);
     }
@@ -113,8 +196,8 @@ export function ClientListTab() {
       await apiClient.delete(`/user/${managerId}/clients/${clientId}`);
       toast.success("Client removed successfully");
       await fetchData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to remove client");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to remove client"));
     }
   };
 
@@ -144,6 +227,29 @@ export function ClientListTab() {
     const start = (page - 1) * pageSize;
     return filteredManagers.slice(start, start + pageSize);
   }, [filteredManagers, page]);
+
+  const managerOptions = useMemo<SearchableOption[]>(
+    () =>
+      managers.map(({ manager }) => {
+        const fullName = `${manager.firstName} ${manager.lastName}`.trim();
+        return {
+          value: manager.id,
+          label: `${fullName} (${manager.emailAddress})`,
+          searchValue: `${fullName} ${manager.emailAddress}`,
+        };
+      }),
+    [managers],
+  );
+
+  const clientOptions = useMemo<SearchableOption[]>(
+    () =>
+      availableClients.map((client) => ({
+        value: client.id,
+        label: client.name,
+        searchValue: `${client.name} ${client.id}`,
+      })),
+    [availableClients],
+  );
 
   if (loading) {
     return (
@@ -179,37 +285,31 @@ export function ClientListTab() {
           <CardDescription>Select a manager and client to create an assignment</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-4">
-            <div className="flex-1">
+          <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Manager</label>
-              <Select value={selectedManagerId} onValueChange={setSelectedManagerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a manager" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map((m) => (
-                    <SelectItem key={m.manager.id} value={m.manager.id}>
-                      {m.manager.firstName} {m.manager.lastName} ({m.manager.emailAddress})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableDropdown
+                value={selectedManagerId}
+                options={managerOptions}
+                placeholder="Select a manager"
+                searchPlaceholder="Search managers by name or email..."
+                emptyMessage="No manager found."
+                disabled={assigning}
+                onValueChange={setSelectedManagerId}
+              />
             </div>
 
-            <div className="flex-1">
+            <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Client</label>
-              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableClients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableDropdown
+                value={selectedClientId}
+                options={clientOptions}
+                placeholder="Select a client"
+                searchPlaceholder="Search clients by name..."
+                emptyMessage="No client found."
+                disabled={assigning}
+                onValueChange={setSelectedClientId}
+              />
             </div>
 
             <Button onClick={handleAssignClient} disabled={assigning || !selectedManagerId || !selectedClientId}>
