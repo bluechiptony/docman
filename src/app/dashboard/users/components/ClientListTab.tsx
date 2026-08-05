@@ -44,27 +44,41 @@ interface SearchableOption {
 interface SearchableDropdownProps {
   value: string;
   options: SearchableOption[];
+  selectedOptionFallback?: SearchableOption | null;
   placeholder: string;
   searchPlaceholder: string;
   emptyMessage: string;
   disabled?: boolean;
+  searchValue?: string;
+  searching?: boolean;
+  onSearchChange?: (value: string) => void;
   onValueChange: (value: string) => void;
 }
 
 function SearchableDropdown({
   value,
   options,
+  selectedOptionFallback,
   placeholder,
   searchPlaceholder,
   emptyMessage,
   disabled,
+  searchValue,
+  searching,
+  onSearchChange,
   onValueChange,
 }: SearchableDropdownProps) {
   const [open, setOpen] = useState(false);
-  const selectedOption = options.find((option) => option.value === value);
+  const selectedOption = options.find((option) => option.value === value) ?? selectedOptionFallback;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) onSearchChange?.("");
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -81,10 +95,23 @@ function SearchableDropdown({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={!onSearchChange}>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onValueChange={onSearchChange}
+          />
           <CommandList>
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandEmpty>
+              {searching ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader className="h-4 w-4 animate-spin" />
+                  Searching...
+                </span>
+              ) : (
+                emptyMessage
+              )}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
@@ -118,9 +145,13 @@ export function ClientListTab() {
   const [managers, setManagers] = useState<ManagerWithClients[]>([]);
   const [availableClients, setAvailableClients] = useState<Client[]>([]);
   const [selectedManagerId, setSelectedManagerId] = useState<string>("");
+  const [selectedManagerOption, setSelectedManagerOption] = useState<SearchableOption | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [assigning, setAssigning] = useState(false);
   const [search, setSearch] = useState("");
+  const [managerSearch, setManagerSearch] = useState("");
+  const [managerSearchResults, setManagerSearchResults] = useState<SearchableOption[] | null>(null);
+  const [managerSearching, setManagerSearching] = useState(false);
   const [page, setPage] = useState(1);
   const organizationId = user?.selectedOrganization?.id;
 
@@ -171,6 +202,55 @@ export function ClientListTab() {
     void fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const query = managerSearch.trim();
+    if (!query || !organizationId) {
+      setManagerSearchResults(null);
+      setManagerSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    setManagerSearchResults([]);
+    setManagerSearching(true);
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await apiClient.get<Array<{ id: string; name: string; email: string }>>(
+          "/user/search/managers",
+          {
+            params: {
+              organizationId,
+              q: query,
+              limit: 25,
+            },
+          },
+        );
+
+        if (cancelled) return;
+        setManagerSearchResults(
+          response.data.map((manager) => ({
+            value: manager.id,
+            label: `${manager.name} (${manager.email})`,
+            searchValue: `${manager.name} ${manager.email}`,
+          })),
+        );
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setManagerSearchResults([]);
+          toast.error(getErrorMessage(error, "Failed to search managers"));
+        }
+      } finally {
+        if (!cancelled) setManagerSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [managerSearch, organizationId]);
+
   const handleAssignClient = async () => {
     if (!selectedManagerId || !selectedClientId) {
       toast.error("Please select both a manager and a client");
@@ -182,6 +262,7 @@ export function ClientListTab() {
       await apiClient.post(`/user/${selectedManagerId}/clients/${selectedClientId}`);
       toast.success("Client assigned successfully");
       setSelectedManagerId("");
+      setSelectedManagerOption(null);
       setSelectedClientId("");
       await fetchData();
     } catch (error: unknown) {
@@ -290,12 +371,23 @@ export function ClientListTab() {
               <label className="text-sm font-medium mb-2 block">Manager</label>
               <SearchableDropdown
                 value={selectedManagerId}
-                options={managerOptions}
+                options={managerSearchResults ?? managerOptions}
+                selectedOptionFallback={selectedManagerOption}
                 placeholder="Select a manager"
                 searchPlaceholder="Search managers by name or email..."
                 emptyMessage="No manager found."
                 disabled={assigning}
-                onValueChange={setSelectedManagerId}
+                searchValue={managerSearch}
+                searching={managerSearching}
+                onSearchChange={setManagerSearch}
+                onValueChange={(managerId) => {
+                  const option = (managerSearchResults ?? managerOptions).find(
+                    (manager) => manager.value === managerId,
+                  );
+                  setSelectedManagerId(managerId);
+                  setSelectedManagerOption(option ?? null);
+                  setManagerSearch("");
+                }}
               />
             </div>
 
