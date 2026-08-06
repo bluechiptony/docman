@@ -49,6 +49,10 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const isAdminOrSupport =
     user?.authentication?.role === "SUPER_ADMIN" || user?.authentication?.role === "ADMINISTRATOR";
+  const isAdminManagerOrSupport =
+    user?.authentication?.role === "SUPER_ADMIN" ||
+    user?.authentication?.role === "ADMINISTRATOR" ||
+    user?.authentication?.role === "MANAGER";
 
   const [stats, setStats] = useState({
     documents: 0,
@@ -210,13 +214,12 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentActivity data={recentActivity} loading={activityLoading} error={activityError} />
-
-        {/* Document Type Breakdown */}
-        <DocumentTypeBreakdown data={docTypeData} loading={overviewLoading} error={overviewError} />
-      </div>
-      {/* Recent Activity */}
+      {isAdminManagerOrSupport && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <RecentActivity data={recentActivity} loading={activityLoading} error={activityError} />
+          <DocumentTypeBreakdown data={docTypeData} loading={overviewLoading} error={overviewError} />
+        </div>
+      )}
     </div>
   );
 }
