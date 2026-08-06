@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { apiClient } from "@/api/client";
 import { clientsApi } from "@/api/clients";
-import { useAuth, useAuthUser } from "@/providers/auth.provider";
+import { useAuth } from "@/providers/auth.provider";
 
 interface InviteUserModalProps {
   open: boolean;
@@ -31,7 +31,6 @@ interface Client {
 
 export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserModalProps) {
   const { user } = useAuth();
-  const { user: authUser } = useAuthUser();
   const [email, setEmail] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [clients, setClients] = useState<Client[]>([]);
@@ -40,9 +39,7 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
 
   // Get organizationId from user's selected organization
   const organizationId = user?.selectedOrganization?.id || "";
-
-  // Log every render to confirm component is alive
-  useEffect(() => {});
+  const isManager = user?.authentication?.role === "MANAGER";
 
   useEffect(() => {
     if (open && organizationId) {
@@ -53,23 +50,10 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
   const fetchClients = async (orgId: string) => {
     setLoadingClients(true);
     try {
-      let clients: Client[] = [];
-
-      if (authUser?.authentication?.role === "MANAGER") {
-        // For managers, fetch only assigned clients
-
-        const assignedResponse = await apiClient.get(`/user/${authUser.id}/clients`);
-        clients = assignedResponse.data || [];
-      } else {
-        // For admins/super admins, fetch all clients in organization
-
-        const response = await clientsApi.getByOrganization(orgId);
-        clients = response?.data || [];
-      }
-
-      setClients(clients);
+      const response = await clientsApi.getByOrganization(orgId, 1, 100);
+      setClients(response?.data || []);
       setSelectedClientId(undefined); // Reset client selection when org changes
-    } catch (error: any) {
+    } catch {
       // Don't show error toast for clients - it's optional
       setClients([]);
     } finally {
@@ -99,10 +83,15 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
       return;
     }
 
+    if (isManager && !selectedClientId) {
+      toast.error("Please select one of your assigned clients");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const payload: any = { email, organizationId };
+      const payload: { email: string; organizationId: string; clientId?: string } = { email, organizationId };
       if (selectedClientId) {
         payload.clientId = selectedClientId;
       }
@@ -112,8 +101,10 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
       setSelectedClientId(undefined);
       onClose();
       onInviteSuccess?.();
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to send invitation. Please try again.";
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
+        "Failed to send invitation. Please try again.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -157,33 +148,35 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
 
           <div className="space-y-2">
             <Label htmlFor="client">
-              Assign to Client <span className="text-xs text-muted-foreground">(optional)</span>
+              Assign to Client{" "}
+              <span className="text-xs text-muted-foreground">{isManager ? "(required)" : "(optional)"}</span>
             </Label>
             {loadingClients ? (
               <div className="text-sm text-muted-foreground">Loading clients...</div>
             ) : (
-              <Select
-                value={selectedClientId || ""}
-                onValueChange={(value) => setSelectedClientId(value || undefined)}
-                disabled={loading}
-              >
-                <SelectTrigger id="client">
-                  <SelectValue placeholder="No client selected" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No clients available
-                    </SelectItem>
-                  ) : (
-                    clients.map((client) => (
+              <>
+                <Select
+                  value={selectedClientId || ""}
+                  onValueChange={(value) => setSelectedClientId(value || undefined)}
+                  disabled={loading || clients.length === 0}
+                >
+                  <SelectTrigger id="client">
+                    <SelectValue placeholder={isManager ? "Select an assigned client" : "No client selected"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
                       </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isManager && clients.length === 0 ? (
+                  <p className="mt-2 text-sm text-amber-700">
+                    No clients are assigned to you. Ask an administrator to assign a client before inviting staff.
+                  </p>
+                ) : null}
+              </>
             )}
           </div>
         </div>
@@ -192,7 +185,10 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || !organizationId}>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || !organizationId || (isManager && !selectedClientId)}
+          >
             {loading ? "Sending..." : "Send Invitation"}
           </Button>
         </DialogFooter>

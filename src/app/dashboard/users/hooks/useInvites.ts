@@ -14,60 +14,59 @@ export interface Invite {
   invitedBy?: string;
   acceptedAt?: string;
   revokedAt?: string;
+  client: {
+    id: string;
+    name: string;
+  } | null;
 }
 
-export function useInvites() {
+function getErrorMessage(error: unknown, fallback: string) {
+  return (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? fallback;
+}
+
+export function useInvites(organizationId?: string) {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchPendingInvites = useCallback(async () => {
+    if (!organizationId) {
+      setInvites([]);
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await apiClient.get("/auth/invites");
+      const response = await apiClient.get("/auth/invites", {
+        params: { organizationId },
+      });
       setInvites(response.data || []);
-    } catch (error: any) {
-      toast.error("Failed to load pending invites");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to load pending invites"));
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const inviteUser = useCallback(
-    async (email: string) => {
-      try {
-        const response = await apiClient.post("/auth/invite", { email });
-        toast.success(`Invitation sent to ${email}`);
-        // Refresh invites list
-        await fetchPendingInvites();
-        return response.data;
-      } catch (error: any) {
-        const message = error.response?.data?.message || "Failed to send invitation";
-        toast.error(message);
-        throw error;
-      }
-    },
-    [fetchPendingInvites],
-  );
+  }, [organizationId]);
 
   const revokeInvite = useCallback(
     async (inviteId: string) => {
       try {
-        await apiClient.post(`/auth/invites/${inviteId}/revoke`);
+        await apiClient.post(`/auth/invites/${inviteId}/revoke`, undefined, {
+          params: { organizationId },
+        });
         toast.success("Invitation revoked");
         await fetchPendingInvites();
-      } catch (error: any) {
-        toast.error("Failed to revoke invitation");
+      } catch (error: unknown) {
+        toast.error(getErrorMessage(error, "Failed to revoke invitation"));
         throw error;
       }
     },
-    [fetchPendingInvites],
+    [fetchPendingInvites, organizationId],
   );
 
   return {
     invites,
     loading,
     fetchPendingInvites,
-    inviteUser,
     revokeInvite,
   };
 }

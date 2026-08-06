@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Trash2, Upload } from "lucide-react";
-import { toast } from "sonner";
+import { useAuth } from "@/providers/auth.provider";
 
 export function InvitesPage() {
-  const { invites, loading, fetchPendingInvites, revokeInvite } = useInvites();
+  const { user } = useAuth();
+  const { invites, loading, fetchPendingInvites, revokeInvite } = useInvites(user?.selectedOrganization?.id);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [bulkInviteModalOpen, setBulkInviteModalOpen] = useState(false);
 
@@ -24,7 +25,7 @@ export function InvitesPage() {
     if (confirm(`Revoke invitation for ${email}?`)) {
       try {
         await revokeInvite(inviteId);
-      } catch (error) {
+      } catch {
         // Error already handled in hook
       }
     }
@@ -98,7 +99,8 @@ export function InvitesPage() {
                         <div>
                           <p className="font-medium">{invite.email}</p>
                           <p className="text-sm text-muted-foreground">
-                            Invited {new Date(invite.createdAt).toLocaleDateString()}
+                            {invite.client?.name ?? "Not assigned"} · Invited{" "}
+                            {new Date(invite.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>

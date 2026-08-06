@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,6 +38,10 @@ interface ValidationResult {
   }[];
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? fallback;
+}
+
 export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteModalProps) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +55,7 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
 
   const organizationId = user?.selectedOrganization?.id || "";
+  const isManager = user?.authentication?.role === "MANAGER";
 
   useEffect(() => {
     if (open && organizationId) {
@@ -62,10 +66,10 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
   const fetchClients = async (orgId: string) => {
     setLoadingClients(true);
     try {
-      const response = await clientsApi.getByOrganization(orgId);
+      const response = await clientsApi.getByOrganization(orgId, 1, 100);
       setClients(response?.data || []);
       setSelectedClientId(undefined);
-    } catch (error: any) {
+    } catch {
       setClients([]);
     } finally {
       setLoadingClients(false);
@@ -145,6 +149,11 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
       return;
     }
 
+    if (isManager && !selectedClientId) {
+      toast.error("Please select one of your assigned clients");
+      return;
+    }
+
     setValidating(true);
     try {
       // Parse the file
@@ -160,6 +169,7 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
       const response = await apiClient.post("/auth/validate-bulk-invite", {
         emails,
         organizationId,
+        clientId: selectedClientId,
       });
 
       setValidationResult(response.data);
@@ -167,9 +177,8 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
       if (response.data.invalidEmails.length > 0) {
         toast.warning(`${response.data.invalidEmails.length} email(s) have issues`);
       }
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to validate emails";
-      toast.error(message);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to validate emails"));
     } finally {
       setValidating(false);
     }
@@ -183,6 +192,10 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
 
     if (!organizationId) {
       toast.error("Please select an organization");
+      return;
+    }
+    if (isManager && !selectedClientId) {
+      toast.error("Please select one of your assigned clients");
       return;
     }
 
@@ -203,9 +216,8 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
       }
       onClose();
       onInviteSuccess?.();
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to send invitations";
-      toast.error(message);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to send invitations"));
     } finally {
       setSending(false);
     }
@@ -283,7 +295,8 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
           {/* Client Selection */}
           <div className="space-y-2">
             <Label htmlFor="client">
-              Assign to Client <span className="text-xs text-muted-foreground">(optional)</span>
+              Assign to Client{" "}
+              <span className="text-xs text-muted-foreground">{isManager ? "(required)" : "(optional)"}</span>
             </Label>
             {loadingClients ? (
               <div className="text-sm text-muted-foreground">Loading clients...</div>
@@ -291,26 +304,25 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
               <Select
                 value={selectedClientId || ""}
                 onValueChange={(value) => setSelectedClientId(value || undefined)}
-                disabled={validating || sending || validationResult !== null}
+                disabled={validating || sending || validationResult !== null || clients.length === 0}
               >
                 <SelectTrigger id="client">
                   <SelectValue placeholder="No client selected" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clients.length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No clients available
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
                     </SelectItem>
-                  ) : (
-                    clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  ))}
                 </SelectContent>
               </Select>
             )}
+            {!loadingClients && isManager && clients.length === 0 ? (
+              <p className="text-sm text-amber-700">
+                No clients are assigned to you. Ask an administrator to assign a client before inviting staff.
+              </p>
+            ) : null}
           </div>
 
           {/* Validation Results */}
@@ -354,7 +366,11 @@ export function BulkInviteModal({ open, onClose, onInviteSuccess }: BulkInviteMo
           </Button>
 
           {!validationResult ? (
-            <Button onClick={handleValidate} disabled={!file || validating || !organizationId} className="gap-2">
+            <Button
+              onClick={handleValidate}
+              disabled={!file || validating || !organizationId || (isManager && !selectedClientId)}
+              className="gap-2"
+            >
               {validating ? (
                 <>
                   <Loader className="w-4 h-4 animate-spin" />

@@ -11,9 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Trash2, Copy, ExternalLink, Upload } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/providers/auth.provider";
 
 export function InvitesTabContent() {
-  const { invites, loading, fetchPendingInvites, revokeInvite } = useInvites();
+  const { user } = useAuth();
+  const organizationId = user?.selectedOrganization?.id;
+  const { invites, loading, fetchPendingInvites, revokeInvite } = useInvites(organizationId);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [bulkInviteModalOpen, setBulkInviteModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -53,7 +56,7 @@ export function InvitesTabContent() {
     setIsRevoking(true);
     try {
       await revokeInvite(selectedInviteId);
-    } catch (error) {
+    } catch {
       // Error already handled in hook
     } finally {
       setIsRevoking(false);
@@ -126,6 +129,7 @@ export function InvitesTabContent() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="text-left px-4 py-2 font-medium text-gray-600">Email</th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">Client</th>
                     <th className="text-left px-4 py-2 font-medium text-gray-600">Invited</th>
                     <th className="text-left px-4 py-2 font-medium text-gray-600">Status</th>
                     <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>
@@ -135,6 +139,9 @@ export function InvitesTabContent() {
                   {paginatedInvites.map((invite) => (
                     <tr key={invite.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 font-medium text-gray-800">{invite.email}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {invite.client?.name ?? <span className="italic text-muted-foreground">Not assigned</span>}
+                      </td>
                       <td className="px-4 py-3 text-gray-600">{new Date(invite.createdAt).toLocaleDateString()}</td>
                       <td className="px-4 py-3">{getStatusBadge(invite.status)}</td>
                       <td className="px-4 py-3">
