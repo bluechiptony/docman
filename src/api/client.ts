@@ -1,5 +1,7 @@
 import axios from "axios";
 
+export const AUTH_SESSION_EXPIRED_EVENT = "docman:auth-session-expired";
+
 /** 🔹 Main API client — used for app backend requests */
 
 export const apiClient = axios.create({
@@ -41,9 +43,8 @@ apiClient.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
 
-    if (status === 401) {
-      // Optionally redirect to login or trigger refresh
-      // window.location.href = "/login";
+    if (status === 401 && typeof window !== "undefined" && localStorage.getItem("token")) {
+      window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
     } else if (status >= 500) {
     }
 
@@ -55,10 +56,6 @@ apiClient.interceptors.response.use(
  * 📦 Helper: generic API wrapper
  * ──────────────────────────────── */
 export async function apiRequest<T>(fn: () => Promise<{ data: T }>): Promise<T> {
-  try {
-    const res = await fn();
-    return res.data;
-  } catch (err: any) {
-    throw err;
-  }
+  const res = await fn();
+  return res.data;
 }

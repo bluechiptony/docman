@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useState, useEffect, ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
-import { apiClient } from "@/api/client";
+import { apiClient, AUTH_SESSION_EXPIRED_EVENT } from "@/api/client";
 import { organizationsApi, type OrganizationOption } from "@/api/organizations";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -24,7 +24,24 @@ interface User {
 
 type DecodedToken = {
   payload?: User;
-  [key: string]: any;
+  exp?: number;
+  id?: string;
+};
+
+const SESSION_EXPIRED_TOAST_ID = "auth-session-expired";
+
+const getTokenExpiration = (token: string): number | null => {
+  try {
+    const decoded = jwtDecode<DecodedToken>(token);
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+const isTokenExpired = (token: string): boolean => {
+  const expiresAt = getTokenExpiration(token);
+  return expiresAt !== null && expiresAt <= Date.now();
 };
 
 const extractUserFromToken = (token: string): User | null => {
@@ -33,7 +50,7 @@ const extractUserFromToken = (token: string): User | null => {
     const candidate = decoded?.payload ?? decoded;
     if (!candidate || typeof candidate !== "object") return null;
     return candidate as User;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -88,6 +105,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
 
+  const clearAuthSession = useCallback(() => {
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("redirectAfterLogin");
+    setToken(null);
+    setUser(null);
+  }, []);
+
+  const expireSession = useCallback(() => {
+    setIsLoggingOut(true);
+    clearAuthSession();
+    toast.error("Your session has expired. Please log in again.", {
+      id: SESSION_EXPIRED_TOAST_ID,
+    });
+    router.replace("/login");
+    setTimeout(() => setIsLoggingOut(false), 0);
+  }, [clearAuthSession, router]);
+
   // Initialize auth state from localStorage
   useEffect(() => {
     const initializeAuth = async () => {
@@ -95,6 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storedOrgId = localStorage.getItem("selectedOrganizationId");
 
       if (!storedToken) {
+        setIsLoading(false);
+        return;
+      }
+
+      if (isTokenExpired(storedToken)) {
+        expireSession();
         setIsLoading(false);
         return;
       }
@@ -110,13 +150,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const organizations = await buildOrganizationsForUser(extractedUser);
+        if (localStorage.getItem("token") !== storedToken) return;
         const selectedOrganization = resolveSelectedOrganization(organizations, storedOrgId);
         setUser({
           ...extractedUser,
           organizations,
           selectedOrganization,
         });
-      } catch (error) {
+      } catch {
+        // A 401 response may have expired and cleared this session while the
+        // organization request was in flight. Do not restore stale user data.
+        if (localStorage.getItem("token") !== storedToken) return;
         const fallbackOrganizations = extractedUser.organizations ?? [];
         const selectedOrganization = resolveSelectedOrganization(fallbackOrganizations, storedOrgId);
         setUser({
@@ -130,7 +174,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initializeAuth();
-  }, []);
+  }, [expireSession]);
+
+  useEffect(() => {
+    const handleExpiredSession = () => expireSession();
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleExpiredSession);
+    return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleExpiredSession);
+  }, [expireSession]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const scheduleExpirationCheck = () => {
+      const expiresAt = getTokenExpiration(token);
+      if (expiresAt === null) return;
+
+      const remainingMs = expiresAt - Date.now();
+      if (remainingMs <= 0) {
+        expireSession();
+        return;
+      }
+
+      timeoutId = setTimeout(scheduleExpirationCheck, Math.min(remainingMs, 2_147_000_000));
+    };
+
+    scheduleExpirationCheck();
+    return () => clearTimeout(timeoutId);
+  }, [expireSession, token]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -163,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (decodedUser.authentication?.role === "SUPER_ADMIN") {
           decodedUser.organizations = organizations;
         }
-      } catch (error) {}
+      } catch {}
 
       const selectedOrganization = resolveSelectedOrganization(organizations, storedOrgId);
 
@@ -185,8 +256,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         router.push("/dashboard");
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "Login failed. Please try again.";
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
+        "Login failed. Please try again.";
       toast.error(errorMessage);
       throw error;
     }
@@ -194,10 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setIsLoggingOut(true);
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("redirectAfterLogin");
-    setToken(null);
-    setUser(null);
+    clearAuthSession();
     toast.info("Logged out successfully");
     router.push("/");
     setTimeout(() => setIsLoggingOut(false), 0);
@@ -206,12 +276,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = () => {
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
+      if (isTokenExpired(storedToken)) {
+        expireSession();
+        return;
+      }
+
       const extractedUser = extractUserFromToken(storedToken);
       if (extractedUser) {
         const storedOrgId = localStorage.getItem("selectedOrganizationId");
 
         buildOrganizationsForUser(extractedUser)
           .then((organizations) => {
+            if (localStorage.getItem("token") !== storedToken) return;
             const selectedOrganization = resolveSelectedOrganization(organizations, storedOrgId);
             setUser({
               ...extractedUser,
@@ -219,7 +295,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               selectedOrganization,
             });
           })
-          .catch((error) => {
+          .catch(() => {
+            if (localStorage.getItem("token") !== storedToken) return;
             const fallbackOrganizations = extractedUser.organizations ?? [];
             const selectedOrganization = resolveSelectedOrganization(fallbackOrganizations, storedOrgId);
             setUser({
@@ -295,13 +372,13 @@ export function useAuthUser() {
       toast.error("Please login again to continue");
       router.push("/login");
     }
-  }, [context.user, context.isLoading, pathname, router]);
+  }, [context.user, context.isLoading, context.isLoggingOut, pathname, router]);
 
   if (!context.user) {
     // Return a loading state while redirecting
     return {
       ...context,
-      user: null as any, // Temporary until redirect completes
+      user: null as unknown as User, // Temporary until redirect completes
     };
   }
 
