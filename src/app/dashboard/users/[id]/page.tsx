@@ -7,9 +7,8 @@ import { apiClient } from "@/api/client";
 import UserProfile from "@/components/users/UserProfile";
 import UserDocumentsList from "@/components/users/UserDocumentsList";
 import { ManagerClientsSection } from "@/components/users/ManagerClientsSection";
-import {
-  UserRoleSection,
-} from "@/components/users/UserRoleSection";
+import { StaffFolderSection, type StaffFolderProfile } from "@/components/users/StaffFolderSection";
+import { UserRoleSection } from "@/components/users/UserRoleSection";
 import type { AssignableUserRole } from "@/components/users/UserRoleSection";
 import { useAuthUser } from "@/providers/auth.provider";
 
@@ -54,8 +53,12 @@ export default function UserPage() {
   const userId = params.id;
   const [user, setUser] = useState<UserDetails | null>(null);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const [staffFolderProfile, setStaffFolderProfile] = useState<StaffFolderProfile | null>(null);
+  const [staffFolderError, setStaffFolderError] = useState<string | null>(null);
+  const [staffFolderLoading, setStaffFolderLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const selectedOrganizationId = authenticatedUser?.selectedOrganization?.id;
 
   useEffect(() => {
     if (!userId) return;
@@ -76,6 +79,29 @@ export default function UserPage() {
 
         setUser(userResponse.data);
         setDocuments(documentsResponse.data || []);
+
+        const selectedRole = userResponse.data.authentication?.role;
+        if ((selectedRole === "USER" || selectedRole === "STAFF") && selectedOrganizationId) {
+          setStaffFolderLoading(true);
+          setStaffFolderError(null);
+          try {
+            const staffResponse = await apiClient.get<StaffFolderProfile>(`/user/${userId}/staff-folder`, {
+              params: { organizationId: selectedOrganizationId },
+            });
+            if (!cancelled) setStaffFolderProfile(staffResponse.data);
+          } catch (staffError: unknown) {
+            if (!cancelled) {
+              const message = (staffError as { response?: { data?: { message?: string } } }).response?.data?.message;
+              setStaffFolderProfile(null);
+              setStaffFolderError(message || "No staff folder is linked to this user in the selected organization.");
+            }
+          } finally {
+            if (!cancelled) setStaffFolderLoading(false);
+          }
+        } else {
+          setStaffFolderProfile(null);
+          setStaffFolderError(null);
+        }
       } catch (error) {
         if (cancelled) return;
 
@@ -98,7 +124,7 @@ export default function UserPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [selectedOrganizationId, userId]);
 
   if (loading) {
     return (
@@ -122,9 +148,12 @@ export default function UserPage() {
   }
 
   const isManager = user.authentication?.role === "MANAGER";
+  const isStaffUser = user.authentication?.role === "USER" || user.authentication?.role === "STAFF";
+  const authenticatedRole = authenticatedUser?.authentication?.role;
   const canManageUsers =
-    authenticatedUser?.authentication?.role === "ADMINISTRATOR" ||
-    authenticatedUser?.authentication?.role === "SUPER_ADMIN";
+    authenticatedRole === "ADMINISTRATOR" || authenticatedRole === "SUPER_ADMIN";
+  const canManageStaffFolder =
+    authenticatedRole === "MANAGER" || authenticatedRole === "ADMINISTRATOR" || authenticatedRole === "SUPER_ADMIN";
   const selectedUserRole = user.authentication?.role;
   const hasAssignableRole = isAssignableUserRole(selectedUserRole);
   const userOrganization = user.organizations?.[0];
@@ -139,6 +168,38 @@ export default function UserPage() {
 
       <div className="space-y-6">
         <UserProfile user={user} />
+
+        {isStaffUser ? (
+          staffFolderLoading ? (
+            <div className="flex items-center gap-2 rounded-lg border bg-white p-5 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading staff folder information...
+            </div>
+          ) : staffFolderProfile && selectedOrganizationId ? (
+            <StaffFolderSection
+              userId={user.id}
+              organizationId={selectedOrganizationId}
+              profile={staffFolderProfile}
+              canEdit={canManageStaffFolder}
+              onUpdated={(updatedProfile) => {
+                setStaffFolderProfile(updatedProfile);
+                setUser((currentUser) =>
+                  currentUser
+                    ? {
+                        ...currentUser,
+                        firstName: updatedProfile.staff.firstName,
+                        lastName: updatedProfile.staff.lastName,
+                      }
+                    : currentUser,
+                );
+              }}
+            />
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              {staffFolderError || "No staff folder is linked to this user in the selected organization."}
+            </div>
+          )
+        ) : null}
 
         {hasAssignableRole ? (
           <UserRoleSection
