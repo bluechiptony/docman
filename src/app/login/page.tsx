@@ -52,7 +52,7 @@ export default function LoginComponent() {
           <p className="text-white text-lg opacity-90">
             The all in one platform to manage your documents
             <br />
-            collaborate with your team
+            collaborate with your teammates
           </p>
           <div className="flex gap-2">
             <div className="h-2 w-8 bg-white rounded-full"></div>
@@ -66,7 +66,7 @@ export default function LoginComponent() {
         <div className="w-full max-w-md">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Docman! &nbsp;
+              Docman &nbsp;
               <span className="text-xl italic font-light">For Vic Lawrence And Associates</span>
             </h1>
             <p className="text-gray-600">Sign in to your account</p>
@@ -83,7 +83,7 @@ export default function LoginComponent() {
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Email Field */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Your Email</Label>
+                  <Label className="text-sm font-medium text-gray-700">Your Email Address</Label>
                   <Input
                     placeholder="info.machu786@gmail.com"
                     type="email"
