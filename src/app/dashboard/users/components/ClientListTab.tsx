@@ -11,7 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, ChevronsUpDown, Loader, Plus, X, Users as UsersIcon, Building2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader, Plus, X, Building2 } from "lucide-react";
 import { useAuth } from "@/providers/auth.provider";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,15 @@ interface Client {
 interface ManagerWithClients {
   manager: Manager;
   clients: Client[];
+}
+
+interface ManagerAssignmentsResponse {
+  data: ManagerWithClients[];
+  pagination: {
+    page: number;
+    perPage: number;
+    total: number;
+  };
 }
 
 interface SearchableOption {
@@ -96,11 +105,7 @@ function SearchableDropdown({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command shouldFilter={!onSearchChange}>
-          <CommandInput
-            placeholder={searchPlaceholder}
-            value={searchValue}
-            onValueChange={onSearchChange}
-          />
+          <CommandInput placeholder={searchPlaceholder} value={searchValue} onValueChange={onSearchChange} />
           <CommandList>
             <CommandEmpty>
               {searching ? (
@@ -153,11 +158,14 @@ export function ClientListTab() {
   const [managerSearchResults, setManagerSearchResults] = useState<SearchableOption[] | null>(null);
   const [managerSearching, setManagerSearching] = useState(false);
   const [page, setPage] = useState(1);
+  const [totalManagers, setTotalManagers] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const organizationId = user?.selectedOrganization?.id;
 
   const fetchData = useCallback(async () => {
     if (!organizationId) {
       setManagers([]);
+      setTotalManagers(0);
       setAvailableClients([]);
       setLoading(false);
       return;
@@ -165,42 +173,37 @@ export function ClientListTab() {
 
     setLoading(true);
     try {
-      const usersResponse = await apiClient.get(`/user/get/organization/${organizationId}`);
-      const allUsers = usersResponse.data || [];
-
-      const managerUsers = allUsers.filter((u: Manager) => u.authentication?.role === "MANAGER");
-
-      const managersWithClients = await Promise.all(
-        managerUsers.map(async (manager: Manager) => {
-          try {
-            const clientsResponse = await apiClient.get(`/user/${manager.id}/clients`);
-            return {
-              manager,
-              clients: clientsResponse.data || [],
-            };
-          } catch {
-            return {
-              manager,
-              clients: [],
-            };
-          }
+      const [managersResponse, clientsResponse] = await Promise.all([
+        apiClient.get<ManagerAssignmentsResponse>("/user/manager-assignments", {
+          params: {
+            organizationId,
+            page,
+            size: pageSize,
+            q: debouncedSearch || undefined,
+          },
         }),
-      );
+        apiClient.get(`/clients?organizationId=${organizationId}`),
+      ]);
 
-      setManagers(managersWithClients);
-
-      const clientsResponse = await apiClient.get(`/clients?organizationId=${organizationId}`);
+      setManagers(managersResponse.data.data);
+      setTotalManagers(managersResponse.data.pagination.total);
       setAvailableClients(clientsResponse.data?.data || []);
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Failed to load data"));
     } finally {
       setLoading(false);
     }
-  }, [organizationId]);
+  }, [debouncedSearch, organizationId, page]);
 
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    setPage(1);
+    setSearch("");
+    setDebouncedSearch("");
+  }, [organizationId]);
 
   useEffect(() => {
     const query = managerSearch.trim();
@@ -282,20 +285,15 @@ export function ClientListTab() {
     }
   };
 
-  const filteredManagers = managers.filter((m) => {
-    const fullName = `${m.manager.firstName} ${m.manager.lastName}`.toLowerCase();
-    const searchLower = search.toLowerCase();
-    return (
-      fullName.includes(searchLower) ||
-      m.manager.emailAddress.toLowerCase().includes(searchLower) ||
-      m.clients.some((c) => c.name.toLowerCase().includes(searchLower))
-    );
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredManagers.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalManagers / pageSize));
 
   useEffect(() => {
-    setPage(1);
+    const timeoutId = window.setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(search.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
   }, [search]);
 
   useEffect(() => {
@@ -303,11 +301,6 @@ export function ClientListTab() {
       setPage(totalPages);
     }
   }, [page, totalPages]);
-
-  const paginatedManagers = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredManagers.slice(start, start + pageSize);
-  }, [filteredManagers, page]);
 
   const managerOptions = useMemo<SearchableOption[]>(
     () =>
@@ -337,21 +330,6 @@ export function ClientListTab() {
       <div className="flex items-center justify-center py-12">
         <Loader className="w-8 h-8 animate-spin text-primary" />
       </div>
-    );
-  }
-
-  if (managers.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <UsersIcon className="w-12 h-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Managers Found</h3>
-          <p className="text-sm text-muted-foreground text-center max-w-md">
-            There are no users with the MANAGER role in this organization yet. Create a user with the MANAGER role to
-            assign clients.
-          </p>
-        </CardContent>
-      </Card>
     );
   }
 
@@ -427,7 +405,7 @@ export function ClientListTab() {
           </div>
         </CardHeader>
         <CardContent>
-          {filteredManagers.length === 0 ? (
+          {managers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
               <Building2 className="w-10 h-10 mb-3" />
               <p className="text-sm">No results found</p>
@@ -444,7 +422,7 @@ export function ClientListTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedManagers.map((item) => (
+                  {managers.map((item) => (
                     <TableRow key={item.manager.id}>
                       <TableCell className="font-medium">
                         {item.manager.firstName} {item.manager.lastName}
