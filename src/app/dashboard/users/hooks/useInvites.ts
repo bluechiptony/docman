@@ -7,6 +7,10 @@ import { toast } from "sonner";
 export interface Invite {
   id: string;
   email: string;
+  firstName: string | null;
+  middleName: string | null;
+  lastName: string | null;
+  staffId: string | null;
   token: string;
   status: "PENDING" | "ACCEPTED" | "REVOKED";
   createdAt: string;
@@ -21,7 +25,10 @@ export interface Invite {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? fallback;
+  return (
+    (error as { response?: { data?: { message?: string } } }).response?.data
+      ?.message ?? fallback
+  );
 }
 
 export function useInvites(organizationId?: string) {

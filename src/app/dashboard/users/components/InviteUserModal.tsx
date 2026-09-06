@@ -12,7 +12,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { apiClient } from "@/api/client";
 import { clientsApi } from "@/api/clients";
@@ -29,10 +35,20 @@ interface Client {
   name: string;
 }
 
-export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserModalProps) {
+export function InviteUserModal({
+  open,
+  onClose,
+  onInviteSuccess,
+}: InviteUserModalProps) {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
-  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [staffId, setStaffId] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(
+    undefined,
+  );
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
@@ -78,6 +94,16 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
       return;
     }
 
+    if (!firstName.trim()) {
+      toast.error("Please enter a first name");
+      return;
+    }
+
+    if (!lastName.trim()) {
+      toast.error("Please enter a last name");
+      return;
+    }
+
     if (!organizationId) {
       toast.error("Please select an organization");
       return;
@@ -91,20 +117,39 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
     setLoading(true);
 
     try {
-      const payload: { email: string; organizationId: string; clientId?: string } = { email, organizationId };
+      const payload: {
+        email: string;
+        firstName: string;
+        middleName?: string;
+        lastName: string;
+        staffId?: string;
+        organizationId: string;
+        clientId?: string;
+      } = {
+        email: email.trim().toLowerCase(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        organizationId,
+      };
+      if (middleName.trim()) payload.middleName = middleName.trim();
+      if (staffId.trim()) payload.staffId = staffId.trim();
       if (selectedClientId) {
         payload.clientId = selectedClientId;
       }
       await apiClient.post("/auth/invite", payload);
       toast.success(`Invitation sent to ${email}`);
       setEmail("");
+      setFirstName("");
+      setMiddleName("");
+      setLastName("");
+      setStaffId("");
       setSelectedClientId(undefined);
       onClose();
       onInviteSuccess?.();
     } catch (error: unknown) {
       const message =
-        (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
-        "Failed to send invitation. Please try again.";
+        (error as { response?: { data?: { message?: string } } }).response?.data
+          ?.message || "Failed to send invitation. Please try again.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -119,13 +164,70 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Invite User</DialogTitle>
-          <DialogDescription>Send an invitation to a new user via email</DialogDescription>
+          <DialogDescription>
+            Send an invitation to a new user via email
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="invite-first-name">First Name</Label>
+              <Input
+                id="invite-first-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                maxLength={70}
+                disabled={loading}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-middle-name">
+                Middle Name{" "}
+                <span className="text-xs text-muted-foreground">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="invite-middle-name"
+                value={middleName}
+                onChange={(e) => setMiddleName(e.target.value)}
+                maxLength={100}
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-last-name">Last Name</Label>
+              <Input
+                id="invite-last-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                maxLength={70}
+                disabled={loading}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-staff-id">
+                Staff ID{" "}
+                <span className="text-xs text-muted-foreground">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="invite-staff-id"
+                value={staffId}
+                onChange={(e) => setStaffId(e.target.value)}
+                maxLength={100}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
             <Input
@@ -149,19 +251,31 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
           <div className="space-y-2">
             <Label htmlFor="client">
               Assign to Client{" "}
-              <span className="text-xs text-muted-foreground">{isManager ? "(required)" : "(optional)"}</span>
+              <span className="text-xs text-muted-foreground">
+                {isManager ? "(required)" : "(optional)"}
+              </span>
             </Label>
             {loadingClients ? (
-              <div className="text-sm text-muted-foreground">Loading clients...</div>
+              <div className="text-sm text-muted-foreground">
+                Loading clients...
+              </div>
             ) : (
               <>
                 <Select
                   value={selectedClientId || ""}
-                  onValueChange={(value) => setSelectedClientId(value || undefined)}
+                  onValueChange={(value) =>
+                    setSelectedClientId(value || undefined)
+                  }
                   disabled={loading || clients.length === 0}
                 >
                   <SelectTrigger id="client">
-                    <SelectValue placeholder={isManager ? "Select an assigned client" : "No client selected"} />
+                    <SelectValue
+                      placeholder={
+                        isManager
+                          ? "Select an assigned client"
+                          : "No client selected"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {clients.map((client) => (
@@ -173,7 +287,8 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
                 </Select>
                 {isManager && clients.length === 0 ? (
                   <p className="mt-2 text-sm text-amber-700">
-                    No clients are assigned to you. Ask an administrator to assign a client before inviting staff.
+                    No clients are assigned to you. Ask an administrator to
+                    assign a client before inviting staff.
                   </p>
                 ) : null}
               </>
@@ -187,7 +302,9 @@ export function InviteUserModal({ open, onClose, onInviteSuccess }: InviteUserMo
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={loading || !organizationId || (isManager && !selectedClientId)}
+            disabled={
+              loading || !organizationId || (isManager && !selectedClientId)
+            }
           >
             {loading ? "Sending..." : "Send Invitation"}
           </Button>

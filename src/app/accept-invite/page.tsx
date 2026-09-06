@@ -4,13 +4,22 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "sonner";
 import { apiClient } from "@/api/client";
 import Link from "next/link";
 import { ArrowLeft, Mail } from "lucide-react";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
-import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
+import {
+  isStrongPassword,
+  PASSWORD_POLICY_MESSAGE,
+} from "@/lib/password-policy";
 
 function AcceptInviteContent() {
   const router = useRouter();
@@ -21,6 +30,7 @@ function AcceptInviteContent() {
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
   const [tokenValid, setTokenValid] = useState(false);
+  const [identityLocked, setIdentityLocked] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -40,12 +50,23 @@ function AcceptInviteContent() {
       }
 
       try {
-        const response = await apiClient.get(`/auth/validate-invite?token=${token}`);
+        const response = await apiClient.get(
+          `/auth/validate-invite?token=${token}`,
+        );
         setEmail(response.data.email);
+        setIdentityLocked(response.data.identityLocked);
+        setFormData((current) => ({
+          ...current,
+          firstName: response.data.firstName ?? "",
+          otherName: response.data.middleName ?? "",
+          lastName: response.data.lastName ?? "",
+          staffId: response.data.staffId ?? "",
+        }));
         setTokenValid(true);
       } catch (error: unknown) {
         const err = error as { response?: { data?: { message?: string } } };
-        const message = err.response?.data?.message || "Invalid or expired invite link";
+        const message =
+          err.response?.data?.message || "Invalid or expired invite link";
         toast.error(message);
         setTokenValid(false);
       } finally {
@@ -57,11 +78,11 @@ function AcceptInviteContent() {
   }, [token]);
 
   const validateForm = () => {
-    if (!formData.firstName.trim()) {
+    if (!identityLocked && !formData.firstName.trim()) {
       toast.error("Please enter your first name");
       return false;
     }
-    if (!formData.lastName.trim()) {
+    if (!identityLocked && !formData.lastName.trim()) {
       toast.error("Please enter your last name");
       return false;
     }
@@ -90,15 +111,18 @@ function AcceptInviteContent() {
     setSubmitting(true);
 
     try {
-      await apiClient.post("/auth/accept-invite", {
-        token,
-        email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        ...(formData.otherName.trim() ? { otherName: formData.otherName.trim() } : {}),
-        ...(formData.staffId.trim() ? { staffId: formData.staffId.trim() } : {}),
+      const payload: Record<string, string> = {
+        token: token!,
         password: formData.password,
-      });
+      };
+      if (!identityLocked) {
+        payload.firstName = formData.firstName.trim();
+        payload.lastName = formData.lastName.trim();
+        if (formData.otherName.trim())
+          payload.otherName = formData.otherName.trim();
+        if (formData.staffId.trim()) payload.staffId = formData.staffId.trim();
+      }
+      await apiClient.post("/auth/accept-invite", payload);
 
       toast.success("Account created successfully! Redirecting to login...");
       setTimeout(() => {
@@ -106,7 +130,9 @@ function AcceptInviteContent() {
       }, 1500);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
-      const message = err.response?.data?.message || "Failed to create account. Please try again.";
+      const message =
+        err.response?.data?.message ||
+        "Failed to create account. Please try again.";
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -134,11 +160,14 @@ function AcceptInviteContent() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Invalid Invite</CardTitle>
-            <CardDescription>The invite link is invalid or has expired</CardDescription>
+            <CardDescription>
+              The invite link is invalid or has expired
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-6">
-              If you believe this is an error, please contact your administrator.
+              If you believe this is an error, please contact your
+              administrator.
             </p>
             <Link href="/">
               <Button variant="outline" className="w-full">
@@ -160,78 +189,123 @@ function AcceptInviteContent() {
             <Mail className="w-5 h-5 text-primary" />
             <CardTitle>Complete Your Account Setup</CardTitle>
           </div>
-          <CardDescription>You&apos;ve been invited to join. Create your account to get started.</CardDescription>
+          <CardDescription>
+            You&apos;ve been invited to join. Create your account to get
+            started.
+          </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Display */}
             <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Registered Email</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Registered Email
+              </p>
               <p className="text-sm font-medium mt-1">{email}</p>
             </div>
 
-            {/* First Name */}
-            <div className="space-y-2">
-              <label htmlFor="firstName" className="text-sm font-medium">
-                First Name
-              </label>
-              <Input
-                id="firstName"
-                type="text"
-                placeholder="John"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            {/* Last Name */}
-            <div className="space-y-2">
-              <label htmlFor="lastName" className="text-sm font-medium">
-                Last Name
-              </label>
-              <Input
-                id="lastName"
-                type="text"
-                placeholder="Doe"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                disabled={submitting}
-                required
-              />
-            </div>
-
-            {/* Other Name */}
-            <div className="space-y-2">
-              <label htmlFor="otherName" className="text-sm font-medium">
-                Other Name <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <Input
-                id="otherName"
-                type="text"
-                placeholder="Middle name or alias"
-                value={formData.otherName}
-                onChange={(e) => setFormData({ ...formData, otherName: e.target.value })}
-                disabled={submitting}
-              />
-            </div>
-
-            {/* Staff ID */}
-            <div className="space-y-2">
-              <label htmlFor="staffId" className="text-sm font-medium">
-                Staff ID <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <Input
-                id="staffId"
-                type="text"
-                placeholder="Your staff or employee ID"
-                value={formData.staffId}
-                onChange={(e) => setFormData({ ...formData, staffId: e.target.value })}
-                disabled={submitting}
-              />
-            </div>
+            {identityLocked ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Name
+                  </p>
+                  <p className="text-sm font-medium">
+                    {[formData.firstName, formData.otherName, formData.lastName]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </p>
+                </div>
+                {formData.staffId ? (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Staff ID
+                    </p>
+                    <p className="text-sm font-medium">{formData.staffId}</p>
+                  </div>
+                ) : null}
+                <p className="text-xs text-muted-foreground">
+                  These details were supplied by your administrator. Contact
+                  them if a correction is needed.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="firstName" className="text-sm font-medium">
+                    First Name
+                  </label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    value={formData.firstName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, firstName: e.target.value })
+                    }
+                    disabled={submitting}
+                    maxLength={70}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="lastName" className="text-sm font-medium">
+                    Last Name
+                  </label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    value={formData.lastName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
+                    disabled={submitting}
+                    maxLength={70}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="otherName" className="text-sm font-medium">
+                    Middle Name{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (optional)
+                    </span>
+                  </label>
+                  <Input
+                    id="otherName"
+                    type="text"
+                    placeholder="Middle name"
+                    value={formData.otherName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, otherName: e.target.value })
+                    }
+                    disabled={submitting}
+                    maxLength={100}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="staffId" className="text-sm font-medium">
+                    Staff ID{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (optional)
+                    </span>
+                  </label>
+                  <Input
+                    id="staffId"
+                    type="text"
+                    placeholder="Your staff or employee ID"
+                    value={formData.staffId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, staffId: e.target.value })
+                    }
+                    disabled={submitting}
+                    maxLength={100}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Password */}
             <div className="space-y-2">
@@ -243,7 +317,9 @@ function AcceptInviteContent() {
                 type="password"
                 placeholder="••••••••"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 disabled={submitting}
                 required
               />
@@ -260,7 +336,9 @@ function AcceptInviteContent() {
                 type="password"
                 placeholder="••••••••"
                 value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, confirmPassword: e.target.value })
+                }
                 disabled={submitting}
                 required
               />

@@ -8,7 +8,13 @@ import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import TablePaginationControls from "@/components/common/TablePaginationControls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Mail, Trash2, Copy, ExternalLink, Upload } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/providers/auth.provider";
@@ -16,12 +22,15 @@ import { useAuth } from "@/providers/auth.provider";
 export function InvitesTabContent() {
   const { user } = useAuth();
   const organizationId = user?.selectedOrganization?.id;
-  const { invites, loading, fetchPendingInvites, revokeInvite } = useInvites(organizationId);
+  const { invites, loading, fetchPendingInvites, revokeInvite } =
+    useInvites(organizationId);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [bulkInviteModalOpen, setBulkInviteModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedInviteId, setSelectedInviteId] = useState<string | null>(null);
-  const [selectedInviteEmail, setSelectedInviteEmail] = useState<string | null>(null);
+  const [selectedInviteEmail, setSelectedInviteEmail] = useState<string | null>(
+    null,
+  );
   const [isRevoking, setIsRevoking] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -103,7 +112,11 @@ export function InvitesTabContent() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <Button onClick={() => setBulkInviteModalOpen(true)} variant="outline" className="gap-2">
+        <Button
+          onClick={() => setBulkInviteModalOpen(true)}
+          variant="outline"
+          className="gap-2"
+        >
           <Upload className="w-4 h-4" />
           Bulk Import
         </Button>
@@ -116,34 +129,85 @@ export function InvitesTabContent() {
       <Card>
         <CardHeader>
           <CardTitle>Pending Invitations</CardTitle>
-          <CardDescription>Invitations sent to users ({invites.length})</CardDescription>
+          <CardDescription>
+            Invitations sent to users ({invites.length})
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading invitations...</div>
+            <div className="text-center py-8 text-muted-foreground">
+              Loading invitations...
+            </div>
           ) : invites.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No pending invitations</div>
+            <div className="text-center py-8 text-muted-foreground">
+              No pending invitations
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Email</th>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Client</th>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Invited</th>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Status</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">
+                      Name
+                    </th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">
+                      Email
+                    </th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">
+                      Staff ID
+                    </th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">
+                      Client
+                    </th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">
+                      Invited
+                    </th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">
+                      Status
+                    </th>
+                    <th className="text-right px-4 py-2 font-medium text-gray-600">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {paginatedInvites.map((invite) => (
-                    <tr key={invite.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-gray-800">{invite.email}</td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {invite.client?.name ?? <span className="italic text-muted-foreground">Not assigned</span>}
+                    <tr
+                      key={invite.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        {[invite.firstName, invite.middleName, invite.lastName]
+                          .filter(Boolean)
+                          .join(" ") || (
+                          <span className="italic text-muted-foreground">
+                            Legacy invite
+                          </span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{new Date(invite.createdAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-3">{getStatusBadge(invite.status)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        {invite.email}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {invite.staffId || (
+                          <span className="italic text-muted-foreground">
+                            Not provided
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {invite.client?.name ?? (
+                          <span className="italic text-muted-foreground">
+                            Not assigned
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {new Date(invite.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        {getStatusBadge(invite.status)}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           {invite.status === "PENDING" && (
@@ -155,10 +219,16 @@ export function InvitesTabContent() {
                                 className="gap-1"
                               >
                                 <Copy className="w-4 h-4" />
-                                {copiedId === invite.token ? "Copied!" : "Copy Link"}
+                                {copiedId === invite.token
+                                  ? "Copied!"
+                                  : "Copy Link"}
                               </Button>
                               <Link href={getInviteLink(invite.token)}>
-                                <Button variant="outline" size="sm" className="gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1"
+                                >
                                   <ExternalLink className="w-4 h-4" />
                                   View
                                 </Button>
@@ -166,7 +236,9 @@ export function InvitesTabContent() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleRevokeClick(invite.id, invite.email)}
+                                onClick={() =>
+                                  handleRevokeClick(invite.id, invite.email)
+                                }
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="w-4 h-4" />
