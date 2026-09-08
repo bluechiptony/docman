@@ -214,7 +214,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {isAdminManagerOrSupport && (
+      {isAdminOrSupport && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RecentActivity data={recentActivity} loading={activityLoading} error={activityError} />
           <DocumentTypeBreakdown data={docTypeData} loading={overviewLoading} error={overviewError} />
