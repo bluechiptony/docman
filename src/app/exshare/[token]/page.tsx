@@ -1,5 +1,7 @@
 "use client";
 
+import { isImageDocument } from "@/lib/document-preview";
+
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -271,6 +273,12 @@ export default function ExsharePage() {
                     title={docAccess.name}
                     className="h-[70vh] rounded border"
                   />
+                ) : isImageDocument(undefined, docAccess?.name) ? (
+                  <div className="flex h-[70vh] items-center justify-center rounded border bg-gray-50 p-4">
+                    {/* Signed image URLs are displayed directly without an optimization proxy. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={previewUrl} alt={docAccess?.name || "Document"} className="max-w-full max-h-full object-contain" />
+                  </div>
                 ) : (
                   <iframe
                     src={previewUrl}

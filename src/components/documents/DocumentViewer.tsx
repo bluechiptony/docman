@@ -1,5 +1,7 @@
 "use client";
 
+import { isImageDocument } from "@/lib/document-preview";
+
 import { useEffect, useMemo, useState } from "react";
 import { getDocumentById, getDocumentPreviewUrl, type Document } from "@/lib/documents.service";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,7 +51,7 @@ export function DocumentViewer({ documentId, expiresInSeconds = 300 }: DocumentV
     const mime = doc?.mimeType?.toLowerCase() || "";
     const ext = doc?.name?.toLowerCase().split(".").pop();
     if (mime.includes("pdf")) return "pdf";
-    if (mime.startsWith("image/")) return "image";
+    if (isImageDocument(doc?.mimeType, doc?.name)) return "image";
     if (mime.startsWith("video/")) return "video";
     if (mime === "text/plain") return "text";
     if (mime.includes("word") || mime.includes("officedocument") || ext === "docx") return "docx";
@@ -92,7 +94,7 @@ export function DocumentViewer({ documentId, expiresInSeconds = 300 }: DocumentV
         )}
         {kind === "image" && (
           <div className="flex items-center justify-center bg-neutral-50">
-            <img src={previewUrl} alt={doc.name} className="max-h-[80vh] object-contain" />
+            <img src={previewUrl} alt={doc.name} className="max-w-full max-h-[80vh] object-contain" />
           </div>
         )}
         {kind === "video" && <video className="w-full h-[80vh]" controls src={previewUrl} />}

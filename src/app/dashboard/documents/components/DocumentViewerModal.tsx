@@ -1,5 +1,7 @@
 "use client";
 
+import { isImageDocument } from "@/lib/document-preview";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, Download, Share2, Maximize2, Minimize2 } from "lucide-react";
@@ -102,7 +104,7 @@ export default function DocumentViewerModal({
     }
 
     // Image files - Direct display
-    if (mimeType.includes("image")) {
+    if (isImageDocument(doc?.mimeType, doc?.name || documentName)) {
       return (
         <div className="flex items-center justify-center h-full bg-gray-50 p-4">
           <img src={fullUrl} alt={doc?.name || "Document"} className="max-w-full max-h-full object-contain" />
