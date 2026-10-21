@@ -24,6 +24,7 @@ import {
 import { getDocumentActivityLogs, type ActivityLog } from "@/lib/activity-log.service";
 import { ActivityLogList } from "@/components/common/ActivityLogList";
 import { PdfCanvasViewer } from "@/components/documents/PdfCanvasViewer";
+import { isImageDocument } from "@/lib/document-preview";
 import { useAuthUser } from "@/providers/auth.provider";
 import { X } from "lucide-react";
 
@@ -161,10 +162,12 @@ export default function DocumentDrawer({ open, onClose, documentId }: DocumentDr
       );
 
     // Images
-    if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) {
+    if (isImageDocument(doc?.mimeType, doc?.name) || ["gif", "webp", "bmp"].includes(ext)) {
       return (
-        <div className="flex items-center justify-center bg-gray-50 border rounded overflow-hidden max-h-[70vh]">
-          <img src={doc?.url} alt={doc?.name} className="w-full h-auto object-contain" loading="lazy" />
+        <div className="relative h-full min-h-0 w-full rounded border bg-gray-50">
+          {/* Use the signed preview URL: document metadata does not expose storage URLs. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={doc?.name} className="absolute inset-0 h-full w-full object-contain p-2" />
         </div>
       );
     }

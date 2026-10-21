@@ -87,8 +87,8 @@ export default function ExternalDocumentViewerModal({
     // Image files - Direct display
     if (isImageDocument(documentMimeType, documentName)) {
       return (
-        <div className="flex items-center justify-center h-full bg-gray-50 p-4">
-          <img src={fullUrl} alt={documentName || "Document"} className="max-w-full max-h-full object-contain" />
+        <div className="flex h-full min-h-0 w-full items-center justify-center bg-gray-50 p-4">
+          <img src={fullUrl} alt={documentName || "Document"} className="block h-full w-full min-h-0 min-w-0 object-contain" />
         </div>
       );
     }
@@ -135,7 +135,7 @@ export default function ExternalDocumentViewerModal({
         } overflow-hidden flex flex-col`}
       >
         {/* Header */}
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <div className="flex items-center justify-between px-6 py-3 border-b bg-white">
             <div className="flex-1 min-w-0">
               <DialogTitle className="truncate">{documentName || "Document Viewer"}</DialogTitle>
@@ -155,7 +155,7 @@ export default function ExternalDocumentViewerModal({
         </DialogHeader>
 
         {/* Viewer Content */}
-        <div className="overflow-hidden bg-gray-100 h-[85%]">{renderPreview()}</div>
+        <div className="min-h-0 flex-1 overflow-hidden bg-gray-100">{renderPreview()}</div>
       </DialogContent>
     </Dialog>
   );

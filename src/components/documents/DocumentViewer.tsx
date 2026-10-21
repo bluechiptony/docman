@@ -93,8 +93,8 @@ export function DocumentViewer({ documentId, expiresInSeconds = 300 }: DocumentV
           <PdfCanvasViewer url={previewUrl} title={doc.name} className="h-[80vh]" />
         )}
         {kind === "image" && (
-          <div className="flex items-center justify-center bg-neutral-50">
-            <img src={previewUrl} alt={doc.name} className="max-w-full max-h-[80vh] object-contain" />
+          <div className="flex h-[80vh] items-center justify-center bg-neutral-50 p-4">
+            <img src={previewUrl} alt={doc.name} className="block h-full w-full min-h-0 min-w-0 object-contain" />
           </div>
         )}
         {kind === "video" && <video className="w-full h-[80vh]" controls src={previewUrl} />}

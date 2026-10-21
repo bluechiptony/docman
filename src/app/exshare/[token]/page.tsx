@@ -277,7 +277,7 @@ export default function ExsharePage() {
                   <div className="flex h-[70vh] items-center justify-center rounded border bg-gray-50 p-4">
                     {/* Signed image URLs are displayed directly without an optimization proxy. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewUrl} alt={docAccess?.name || "Document"} className="max-w-full max-h-full object-contain" />
+                    <img src={previewUrl} alt={docAccess?.name || "Document"} className="block h-full w-full min-h-0 min-w-0 object-contain" />
                   </div>
                 ) : (
                   <iframe
