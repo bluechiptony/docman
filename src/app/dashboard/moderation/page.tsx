@@ -15,6 +15,9 @@ import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, AlertCircle, HelpCircle } from "lucide-react";
 import { useAuthUser } from "@/providers/auth.provider";
 import { getDocumentPreviewUrl } from "@/lib/documents.service";
+import { ImageViewer } from "@/components/documents/ImageViewer";
+import { PdfCanvasViewer } from "@/components/documents/PdfCanvasViewer";
+import { isImageDocument } from "@/lib/document-preview";
 
 interface DocumentReview {
   id: string;
@@ -255,17 +258,15 @@ export default function ModerationDashboard() {
     }
 
     // Images
-    if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) {
+    if (isImageDocument(selectedReview?.document.mimeType, docName) || ["gif", "webp", "bmp"].includes(ext)) {
       return (
-        <div className="flex items-center justify-center bg-gray-50 border rounded overflow-hidden max-h-[70vh]">
-          <img src={src} alt={docName} className="w-full h-auto object-contain" loading="lazy" />
-        </div>
+        <ImageViewer url={src} title={docName || "Image preview"} />
       );
     }
 
     // PDF
-    if (ext === "pdf") {
-      return <iframe src={src} className="w-full h-[60vh] border rounded" title={docName} />;
+    if (ext === "pdf" || selectedReview?.document.mimeType?.toLowerCase().includes("pdf")) {
+      return <PdfCanvasViewer url={src} title={docName} className="h-full rounded border" />;
     }
 
     // Office files (docx, xlsx, pptx) - use Office Web Viewer
@@ -470,15 +471,15 @@ export default function ModerationDashboard() {
 
       {/* Review Details Dialog */}
       <Dialog open={!!selectedReview} onOpenChange={(open) => !open && setSelectedReview(null)}>
-        <DialogContent className="max-w-7xl h-[90vh]">
-          <DialogHeader>
+        <DialogContent className="flex h-[90vh] max-w-7xl flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Review Document</DialogTitle>
           </DialogHeader>
 
           {selectedReview && (
-            <div className="flex gap-4 h-[calc(90vh-120px)]">
+            <div className="flex min-h-0 flex-1 gap-4">
               {/* Left Side: Document Preview */}
-              <div className="flex-1 border rounded-lg overflow-hidden bg-gray-100">{renderPreview()}</div>
+              <div className="min-h-0 min-w-0 flex-1 border rounded-lg overflow-hidden bg-gray-100">{renderPreview()}</div>
 
               {/* Right Side: Review Controls */}
               <div className="w-96 flex flex-col space-y-4 overflow-y-auto">
